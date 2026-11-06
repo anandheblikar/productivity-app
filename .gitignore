@@ -8,3 +8,13 @@ wheels/
 
 # Virtual environments
 .venv
+
+# macOS folder metadata
+.DS_Store
+
+# Local SQLite database (created at runtime)
+*.db
+
+# Uploaded recordings (saved locally, not committed)
+media/
+.pytest_cache/
