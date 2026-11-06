@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v1 Clickable Wireframe</title>
+<style>
+  :root{
+    --canvas:#e9e9ec; --frame:#ffffff; --ink:#1f1f22; --muted:#8a8a90;
+    --line:#c7c7cc; --line-strong:#333; --fill:#ededf0; --accent:#1f1f22;
+    --sans:system-ui,-apple-system,sans-serif; --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  @media (prefers-color-scheme:dark){ :root:not([data-theme="light"]){
+    color-scheme:dark; --canvas:#161618; --frame:#242427; --ink:#eaeaec; --muted:#8a8a90;
+    --line:#45454a; --line-strong:#9a9aa0; --fill:#2d2d31; --accent:#eaeaec;
+  }}
+  :root[data-theme="dark"]{ color-scheme:dark; --canvas:#161618; --frame:#242427; --ink:#eaeaec; --muted:#8a8a90; --line:#45454a; --line-strong:#9a9aa0; --fill:#2d2d31; --accent:#eaeaec; }
+
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--canvas);color:var(--ink);font-family:var(--sans);
+    min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:22px 14px 40px;}
+  .head{text-align:center;margin-bottom:16px;max-width:420px;}
+  .head h1{font-family:var(--mono);font-size:1rem;font-weight:600;margin:0;}
+  .head p{color:var(--muted);font-size:.8rem;margin:6px 0 0;font-family:var(--mono);}
+
+  .phone{width:360px;max-width:100%;height:min(720px,86vh);background:var(--frame);
+    border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;overflow:hidden;}
+
+  .topbar{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--line);min-height:48px;}
+  .topbar #backBtn{border:none;background:none;color:var(--ink);font-size:1.3rem;line-height:1;cursor:pointer;padding:0 4px;display:none;}
+  .topbar #title{font-weight:600;font-size:1.02rem;}
+  .topbar .clock{margin-left:auto;font-family:var(--mono);font-size:.68rem;color:var(--muted);}
+
+  .content{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;}
+  section.view{display:none;flex-direction:column;gap:10px;}
+  section.view.active{display:flex;}
+
+  .sub{color:var(--muted);font-size:.82rem;}
+  hr{border:none;border-top:1px solid var(--line);margin:4px 0;width:100%;}
+  .lbl{font-size:.72rem;color:var(--muted);font-family:var(--mono);margin-top:4px;}
+  .spacer{flex:1;}
+
+  .chip{display:inline-block;border:1px solid var(--line-strong);border-radius:3px;padding:4px 9px;font-size:.74rem;margin:0 5px 5px 0;background:none;color:var(--ink);cursor:pointer;font-family:inherit;}
+  .chip.sel{background:var(--ink);color:var(--frame);border-color:var(--ink);}
+  .row-chips{display:flex;flex-wrap:wrap;}
+
+  .card{border:1px solid var(--line-strong);border-radius:5px;padding:13px;}
+  .card h3{margin:7px 0 2px;font-size:1.05rem;}
+  .card .tiny{font-size:.74rem;color:var(--muted);margin-top:7px;}
+
+  .btn{display:inline-block;border:1px solid var(--line-strong);border-radius:4px;padding:9px 13px;font-size:.82rem;
+    text-align:center;background:none;color:var(--ink);cursor:pointer;font-family:inherit;}
+  .btn.pri{background:var(--ink);color:var(--frame);border-color:var(--ink);}
+  .btn:focus-visible,.chip:focus-visible,.tab:focus-visible{outline:2px solid var(--line-strong);outline-offset:2px;}
+  .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px;}
+
+  .field{border:1px solid var(--line);border-radius:4px;padding:10px;color:var(--muted);font-size:.82rem;background:var(--fill);}
+  .box-dash{border:1px dashed var(--line-strong);border-radius:4px;padding:16px;text-align:center;color:var(--muted);font-size:.8rem;cursor:pointer;}
+
+  .list{display:flex;flex-direction:column;}
+  .rowbtn{display:flex;justify-content:space-between;align-items:center;gap:8px;border:none;border-bottom:1px solid var(--line);
+    padding:11px 2px;font-size:.88rem;background:none;color:var(--ink);cursor:pointer;font-family:inherit;text-align:left;width:100%;}
+  .rowbtn:last-child{border-bottom:none;}
+  .rowbtn .t{font-size:.7rem;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:1px 6px;white-space:nowrap;}
+  .group{font-family:var(--mono);font-size:.74rem;color:var(--muted);margin-top:10px;}
+  .chk{display:inline-block;width:15px;height:15px;border:1px solid var(--line-strong);border-radius:3px;flex:none;vertical-align:-2px;}
+
+  .wkrow{display:flex;align-items:center;gap:8px;font-size:.82rem;margin:8px 0;}
+  .wkrow .nm{width:92px;flex:none;} .wkrow .ct{width:48px;text-align:right;color:var(--muted);flex:none;font-family:var(--mono);font-size:.72rem;}
+  .track{height:12px;background:var(--fill);border:1px solid var(--line);border-radius:2px;position:relative;flex:1;}
+  .track>span{position:absolute;left:0;top:0;bottom:0;background:var(--line-strong);opacity:.45;}
+
+  .tabbar{display:flex;border-top:1px solid var(--line);}
+  .tab{flex:1;border:none;background:none;color:var(--muted);font-family:var(--mono);font-size:.72rem;
+    padding:11px 4px;cursor:pointer;}
+  .tab.plus{font-size:1.1rem;color:var(--ink);}
+  .tab.on{color:var(--ink);font-weight:700;border-top:2px solid var(--ink);margin-top:-1px;}
+
+  .hint{margin-top:16px;max-width:420px;font-family:var(--mono);font-size:.74rem;color:var(--muted);line-height:1.6;text-align:center;}
+</style>
+</head>
+<body>
+  <div class="head">
+    <h1>v1 — clickable wireframe</h1>
+    <p>tap the tabs &amp; buttons · bare layout, real navigation</p>
+  </div>
+
+  <div class="phone">
+    <div class="topbar">
+      <button id="backBtn" aria-label="Back" onclick="back()">‹</button>
+      <span id="title">Tonight</span>
+      <span class="clock" id="clock">8:42 PM</span>
+    </div>
+
+    <div class="content">
+
+      <!-- TONIGHT -->
+      <section class="view active" id="v-tonight">
+        <div class="card">
+          <div class="row-chips"><span class="chip">Music</span><span class="chip">Everyday</span></div>
+          <h3>Sitar — 20 min</h3>
+          <div class="sub">last played 3 days ago</div>
+          <div class="tiny">short on time? → just 10 min</div>
+          <div class="btns">
+            <button class="btn pri" onclick="go('log')">Let's go</button>
+            <button class="btn" onclick="go('else')">Something else</button>
+          </div>
+        </div>
+        <div class="lbl">ALSO TODAY</div>
+        <div class="list">
+          <button class="rowbtn" onclick="go('detail')"><span><span class="chk"></span>&nbsp; Exercise</span><span class="t">Everyday</span></button>
+          <button class="rowbtn" onclick="go('detail')"><span><span class="chk"></span>&nbsp; Mantra</span><span class="t">Everyday</span></button>
+        </div>
+      </section>
+
+      <!-- SOMETHING ELSE -->
+      <section class="view" id="v-else">
+        <div class="sub">a few other options for tonight</div>
+        <hr>
+        <div class="list">
+          <button class="rowbtn" onclick="go('log')"><span>Read 20 pages<br><span class="t">Mind · Optional</span></span><span>›</span></button>
+          <button class="rowbtn" onclick="go('log')"><span>Learn raga — next step<br><span class="t">Music · Learn</span></span><span>›</span></button>
+          <button class="rowbtn" onclick="go('log')"><span>Stretch 10 min<br><span class="t">Health · Optional</span></span><span>›</span></button>
+        </div>
+        <hr>
+        <button class="box-dash" onclick="tab('tonight')">Or just rest — see you tomorrow</button>
+      </section>
+
+      <!-- ADD -->
+      <section class="view" id="v-add">
+        <div class="lbl">TITLE</div>
+        <div class="field">Book the dentist|</div>
+        <div class="lbl">KIND</div>
+        <div class="row-chips"><span class="chip">Practice</span><span class="chip">Learn</span><span class="chip sel">Todo</span></div>
+        <div class="lbl">DUE BY (todos)</div>
+        <div class="row-chips"><span class="chip sel">Fri Nov 7</span><span class="chip">no date</span></div>
+        <div class="tiny">Practice / Learn ask "Everyday or Optional?" here instead.</div>
+        <div class="btns"><button class="btn pri" onclick="tab('everything')">Save</button><button class="btn" onclick="back()">Cancel</button></div>
+        <div class="spacer"></div>
+        <div class="box-dash">quick-capture: type a title — the app files it for you</div>
+      </section>
+
+      <!-- EVERYTHING -->
+      <section class="view" id="v-everything">
+        <div class="sub">grouped automatically</div>
+        <div class="group">🎵 MUSIC</div>
+        <div class="list">
+          <button class="rowbtn" onclick="go('detail')"><span>Sitar</span><span class="t">Everyday</span></button>
+          <button class="rowbtn" onclick="go('detail')"><span>Learn Raga Yaman</span><span class="t">Learn</span></button>
+        </div>
+        <div class="group">💪 HEALTH</div>
+        <div class="list">
+          <button class="rowbtn" onclick="go('detail')"><span>Exercise</span><span class="t">Everyday</span></button>
+          <button class="rowbtn" onclick="go('detail')"><span>Book dentist</span><span class="t">due Fri</span></button>
+        </div>
+        <div class="group">🕉️ SPIRITUAL</div>
+        <div class="list">
+          <button class="rowbtn" onclick="go('detail')"><span>Gayatri mantra</span><span class="t">Learn</span></button>
+        </div>
+      </section>
+
+      <!-- DETAIL -->
+      <section class="view" id="v-detail">
+        <div class="row-chips"><span class="chip">Music</span><span class="chip">Practice</span><span class="chip">Everyday</span></div>
+        <div class="sub">next: slow section of Raga Yaman</div>
+        <div class="btns"><button class="btn pri" onclick="go('log')">Log a session</button><button class="btn" onclick="back()">Edit</button></div>
+        <div class="lbl">HISTORY</div>
+        <div class="list">
+          <button class="rowbtn" onclick="go('log')"><span>Nov 2 — cleaner on descent 🎙</span><span>›</span></button>
+          <button class="rowbtn" onclick="go('log')"><span>Oct 30 — worked on alap</span><span>›</span></button>
+        </div>
+      </section>
+
+      <!-- LOG -->
+      <section class="view" id="v-log">
+        <div class="sub">Sitar · just finished</div>
+        <div class="lbl">NOTE</div>
+        <div class="field" style="min-height:92px;">cleaner on the descent; still rushing the last phrase|</div>
+        <div class="lbl">RECORDING (optional)</div>
+        <div class="box-dash">＋ add audio / video &nbsp;·&nbsp; 🎙 🎬</div>
+        <div class="btns"><button class="btn pri" onclick="tab('tonight')">Save log</button><button class="btn" onclick="back()">Skip</button></div>
+      </section>
+
+      <!-- WEEK -->
+      <section class="view" id="v-week">
+        <div class="sub">time by area — a picture, not a score</div>
+        <hr>
+        <div class="wkrow"><span class="nm">🎵 Music</span><span class="track"><span style="width:80%"></span></span><span class="ct">4×</span></div>
+        <div class="wkrow"><span class="nm">🕉️ Spiritual</span><span class="track"><span style="width:60%"></span></span><span class="ct">3×</span></div>
+        <div class="wkrow"><span class="nm">💪 Health</span><span class="track"><span style="width:40%"></span></span><span class="ct">2×</span></div>
+        <div class="wkrow"><span class="nm">🧠 Mind</span><span class="track"><span style="width:3%"></span></span><span class="ct">0</span></div>
+        <div class="wkrow"><span class="nm">🏠 Life stuff</span><span class="track"><span style="width:30%"></span></span><span class="ct">2 done</span></div>
+        <hr>
+        <button class="box-dash" onclick="go('log')">replay: Mon clip ▸ &nbsp; vs &nbsp; Sat clip ▸</button>
+        <div class="tiny">Did you spend time on what matters?</div>
+      </section>
+
+    </div>
+
+    <div class="tabbar">
+      <button class="tab" data-tab="tonight" onclick="tab('tonight')">Tonight</button>
+      <button class="tab" data-tab="everything" onclick="tab('everything')">Everything</button>
+      <button class="tab" data-tab="week" onclick="tab('week')">Week</button>
+      <button class="tab plus" onclick="go('add')" aria-label="Add">+</button>
+    </div>
+  </div>
+
+  <div class="hint">
+    flows wired: Let's go → Log · Something else → options · + → Add · rows → Item detail · Save → back to a tab.<br>
+    tell me what feels clunky and we'll rework the navigation.
+  </div>
+
+<script>
+  var TITLES = {tonight:'Tonight', everything:'Everything', week:'This week',
+    add:'Add', else:'Something else', detail:'Sitar', log:'Log — Sitar'};
+  var MAIN = {tonight:1, everything:1, week:1};
+  var stack = ['tonight'];
+
+  function render(){
+    var cur = stack[stack.length-1];
+    document.querySelectorAll('section.view').forEach(function(s){ s.classList.remove('active'); });
+    document.getElementById('v-'+cur).classList.add('active');
+    document.getElementById('title').textContent = TITLES[cur] || '';
+    document.getElementById('backBtn').style.display = (stack.length>1) ? 'block' : 'none';
+    document.querySelectorAll('.tab[data-tab]').forEach(function(t){
+      t.classList.toggle('on', t.getAttribute('data-tab')===cur);
+    });
+    document.querySelector('.content').scrollTop = 0;
+  }
+  function go(v){ stack.push(v); render(); }
+  function tab(v){ stack = [v]; render(); }
+  function back(){ if(stack.length>1){ stack.pop(); render(); } }
+  render();
+</script>
+</body>
+</html>
