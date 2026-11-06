@@ -1,0 +1,42 @@
+{#
+  The shared page shell: the phone frame, top bar, and bottom tab bar.
+  Every screen "extends" this file and fills in the `content` block.
+
+  Variables a page can set:
+    title     - the text shown in the top bar
+    back_url  - if set, a "<" back link appears in the top bar
+    active    - which tab is highlighted: "tonight" | "everything" | "week"
+#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ title }} · Tonight</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="phone">
+
+    <div class="topbar">
+      {% if back_url %}
+        <a class="back" href="{{ back_url }}" aria-label="Back">‹</a>
+      {% endif %}
+      <span class="title">{{ title }}</span>
+      <span class="clock">{{ now.strftime("%-I:%M %p") }}</span>
+    </div>
+
+    <div class="content">
+      {% block content %}{% endblock %}
+    </div>
+
+    <div class="tabbar">
+      <a class="tab {% if active == 'tonight' %}on{% endif %}" href="/">Tonight</a>
+      <a class="tab {% if active == 'everything' %}on{% endif %}" href="/everything">Everything</a>
+      <a class="tab {% if active == 'week' %}on{% endif %}" href="/week">Week</a>
+      <a class="tab plus" href="/add" aria-label="Add">+</a>
+    </div>
+
+  </div>
+</body>
+</html>

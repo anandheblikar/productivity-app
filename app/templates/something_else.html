@@ -1,0 +1,32 @@
+{# "Something else": 2-3 alternatives, and resting is always an option. #}
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="sub">a few other options for tonight</div>
+  <hr>
+
+  {% if alternatives %}
+    <div class="list">
+      {% for item in alternatives %}
+        <a class="rowbtn" href="/item/{{ item.id }}/log">
+          <span>
+            {{ item.title }}<br>
+            <span class="t">
+              {{ item.category }} ·
+              {%- if item.commitment %} {{ item.commitment | capitalize }}
+              {%- elif item.kind == "learn" %} Learn
+              {%- elif item.kind == "todo" %} Todo
+              {%- endif %}
+            </span>
+          </span>
+          <span>›</span>
+        </a>
+      {% endfor %}
+    </div>
+    <hr>
+  {% else %}
+    <div class="empty">No other options right now.</div>
+  {% endif %}
+
+  <a class="box-dash" href="/">Or just rest — see you tomorrow</a>
+{% endblock %}

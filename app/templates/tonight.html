@@ -1,0 +1,53 @@
+{# Tonight (home): the one suggestion, plus the "also today" anchors. #}
+{% extends "base.html" %}
+
+{% block content %}
+  {% if suggestion %}
+    <div class="card">
+      <div class="row-chips">
+        <span class="chip">{{ suggestion.category }}</span>
+        {% if suggestion.commitment %}
+          <span class="chip">{{ suggestion.commitment | capitalize }}</span>
+        {% elif suggestion.kind == "todo" %}
+          <span class="chip">Todo</span>
+        {% endif %}
+      </div>
+
+      <h3>{{ suggestion.title }}</h3>
+
+      {% if suggestion.next_step %}
+        <div class="sub">next: {{ suggestion.next_step }}</div>
+      {% elif suggestion.due_date %}
+        <div class="sub">due {{ suggestion.due_date.strftime("%a %b %-d") }}</div>
+      {% endif %}
+
+      <div class="tiny">{{ tiny }}</div>
+
+      <div class="btns">
+        <a class="btn pri" href="/item/{{ suggestion.id }}/log">Let's go</a>
+        <a class="btn" href="/something-else">Something else</a>
+      </div>
+    </div>
+  {% else %}
+    {# Nothing active to suggest — resting is a perfectly good choice. #}
+    <div class="card">
+      <h3>Nothing pressing tonight</h3>
+      <div class="sub">Just rest — see you tomorrow.</div>
+      <div class="btns">
+        <a class="btn pri" href="/add">Add something</a>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if also_today %}
+    <div class="lbl">ALSO TODAY</div>
+    <div class="list">
+      {% for item in also_today %}
+        <a class="rowbtn" href="/item/{{ item.id }}">
+          <span><span class="chk"></span>&nbsp; {{ item.title }}</span>
+          <span class="t">Everyday</span>
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endblock %}

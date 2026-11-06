@@ -1,0 +1,21 @@
+{# This week: sessions per category over the last 7 days — a picture. #}
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="sub">time by area — a picture, not a score</div>
+  <hr>
+
+  {% if rows %}
+    {% for row in rows %}
+      <div class="wkrow">
+        <span class="nm">{{ row.emoji }} {{ row.name }}</span>
+        <span class="track"><span style="width: {{ row.width }}%"></span></span>
+        <span class="ct">{{ row.count }}×</span>
+      </div>
+    {% endfor %}
+    <hr>
+    <div class="tiny">Did you spend time on what matters?</div>
+  {% else %}
+    <div class="empty">No sessions logged in the last 7 days yet.</div>
+  {% endif %}
+{% endblock %}

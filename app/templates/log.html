@@ -1,0 +1,21 @@
+{# Log a session: a note (always) and an optional audio/video recording. #}
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="sub">{{ item.title }} · just finished</div>
+
+  {# enctype is required so the browser can send the uploaded file. #}
+  <form method="post" action="/item/{{ item.id }}/log" enctype="multipart/form-data">
+
+    <div class="lbl">NOTE</div>
+    <textarea name="note" placeholder="How did it go?"></textarea>
+
+    <div class="lbl">RECORDING (optional)</div>
+    <input type="file" name="recording" accept="audio/*,video/*">
+
+    <div class="btns">
+      <button class="btn pri" type="submit">Save log</button>
+      <a class="btn" href="/">Skip</a>
+    </div>
+  </form>
+{% endblock %}
