@@ -16,17 +16,35 @@ it's built to match in [`reference/`](reference/).
 - **Something else** — 2–3 alternatives; "just rest" is always valid.
 - **Everything** — all your items, grouped automatically by category.
 - **This week** — how many sessions each area got in the last 7 days.
-- **Add** — title → kind → commitment *or* due date. No category picker;
-  the app files each item itself from keywords in the title.
+- **Add** — title → **rhythm** (Once / Daily / Weekly / Monthly / Anytime);
+  a due date appears only for one-offs, and any item can carry an optional
+  "next step". No category picker; the app files each item itself from
+  keywords in the title.
 - **Logging** — after doing a thing, jot a note and (optionally) attach an
   audio/video recording, saved to a local `media/` folder.
 
+### Rhythm — the one axis
+
+Instead of separate "kinds", every item has a **rhythm** — how often it
+wants your attention:
+
+| Rhythm | Means |
+|---|---|
+| **Once** | a one-off; optional due date; finishes & leaves |
+| **Daily** | an everyday anchor |
+| **Weekly / Monthly** | a recurring chore; doing it rolls the date forward so it comes back |
+| **Anytime** | no schedule; fills leftover time |
+
+An optional **next step** on any item is the "learn / working towards a
+goal" flavour — if present, the nudge shows the concrete next bit.
+
 ### How the one suggestion is chosen
 
-Items are surfaced in priority order: **Due → Everyday → Optional**. Among
-Optional items it uses *fair rotation* — the one done least recently comes
-first — so favourites don't crowd out the rest and neglected things
-resurface on their own. (See [`app/nudge.py`](app/nudge.py).)
+Items are surfaced in priority order: **Due → Daily → Anytime**. "Due"
+covers both a one-off due soon *and* a recurring item that's come back
+around. Among Anytime items it uses *fair rotation* — the one done least
+recently comes first — so favourites don't crowd out the rest and neglected
+things resurface on their own. (See [`app/nudge.py`](app/nudge.py).)
 
 ## Tech
 

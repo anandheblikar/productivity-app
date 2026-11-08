@@ -16,31 +16,41 @@ Working name: TBD. Runs in a browser (laptop + phone), local-only for v1.
 - Each suggestion offers a **tiny version** (e.g. "just 10 min") to lower the barrier to starting.
 
 ## Items — the one spine
-Everything the user tracks is an **Item**. Each has:
+Everything the user tracks is an **Item**. The three old "kinds" (practice/learn/todo)
+collapse onto a single axis — **rhythm**, i.e. *how often does this want my attention?*
+Each item has:
 - `title`
-- `kind`: `practice` (repeats, never done) · `learn` (has steps, grows) · `todo` (one-off, checks off & leaves)
-- `commitment`: `everyday` or `optional` — asked for practice/learn; **todos use a due date instead**
-- `due_date`: optional (mainly todos)
-- `next_step`: optional short text (mainly learn — so the nudge can suggest the concrete next bit)
+- `rhythm`: one of
+  - `once` — a one-off; optional due date; finishes & leaves (the old *todo*)
+  - `daily` — an everyday anchor (the old *everyday practice*)
+  - `weekly` / `monthly` — repeats on a schedule; each time it's done it rolls forward
+    and comes back (covers recurring chores like rent or watering plants)
+  - `anytime` — no schedule, open-ended, fills leftover time (the old *optional practice*)
+- `due_date`: for `once`, when it's due; for `weekly`/`monthly`, the *next* time it comes
+  around (rolled forward on completion); unused for `daily`/`anytime`
+- `next_step`: optional short text — the old *learn* flavour. Any item can carry one; if it
+  does, the nudge shows the concrete next bit. (So "learn" isn't a separate kind — it's any
+  item with a goal attached.)
 - `category`: **auto-assigned** (see below) — the user never picks or manages it
-- `status`: `active` / `done` (done todos leave the active list)
+- `status`: `active` / `done` (a finished `once` item leaves the active list)
 
 ## Nudge priority (the rule)
-Surface in this order: **Due → Everyday → Optional.**
-- `Due`: a todo whose due date is near/passed jumps the queue.
-- `Everyday`: the user's daily anchors.
-- `Optional`: fills leftover time.
+Surface in this order: **Due → Daily → Anytime.**
+- `Due`: a `once` item whose date is near/passed, OR a `weekly`/`monthly` item that has
+  come back around (its next date has arrived) — jumps the queue.
+- `Daily`: the user's everyday anchors.
+- `Anytime`: fills leftover time.
 
-### Optional fairness (so favorites don't crowd out the rest) — Optional items only
-1. **Fair rotation (silent default):** among Optional items, bias selection toward the one done
+### Anytime fairness (so favorites don't crowd out the rest) — Anytime items only
+1. **Fair rotation (silent default):** among Anytime items, bias selection toward the one done
    **least recently** (compute from logs). Neglected ones surface on their own.
-2. **Gentle hint (only with enough data):** if one Optional dominates recent picks, show a
-   pick-able suggestion to try another — never a block.
+2. **Gentle hint (only with enough data):** if one Anytime item dominates recent picks, show a
+   pick-able suggestion to try another — never a block. *(Later upgrade.)*
 3. **Weekly keep / promote / drop:** things repeatedly skipped surface in the weekly review as a
-   decision (keep / promote to Everyday / drop).
+   decision (keep / promote to Daily / drop). *(Later upgrade.)*
 
-### Everyday soft lean
-If the Everyday list grows long, show a quiet hint — **never a block**. Low priority for the first build.
+### Daily soft lean
+If the Daily list grows long, show a quiet hint — **never a block**. Low priority for the first build.
 
 ## Auto-categorization (the user never manages categories)
 On add, the app assigns a category itself using **simple built-in keyword rules**, with an
@@ -64,7 +74,8 @@ Four destinations in a bottom tab bar, plus sub-screens:
 2. **Everything** — all items, grouped by (auto) category.
 3. **This week** — sessions per category over the last 7 days ("what did my life get"); also where
    skipped Optionals get keep/promote/drop.
-4. **Add** (the `+`) — title, kind, then commitment OR due date. No category picker. Quick to add.
+4. **Add** (the `+`) — title, then rhythm (Once / Daily / Weekly / Monthly / Anytime); a due
+   date appears only for `once`; an optional next step for any item. No category picker. Quick to add.
 Sub-screens: **Something else** (alternatives), **Log a session** (after "Let's go"), **Item detail**
 (history/logs, "log a session").
 
@@ -77,7 +88,7 @@ Streaks / don't-break-the-chain · points, badges, gamification · multi-user / 
 notifications · people / birthdays (parked — returns later as a category) · calendar & integrations.
 
 ## Data model summary
-- **Item**(id, title, kind, commitment, due_date?, next_step?, category, status, created_at)
+- **Item**(id, title, rhythm, due_date?, next_step?, category, status, created_at)
 - **Log**(id, item_id → Item, done_at, note, media_path?, media_type?)
 (No separate Area/Category table needed — `category` is a string on Item, assigned by the rules.)
 
