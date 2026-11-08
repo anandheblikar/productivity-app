@@ -12,10 +12,8 @@
           <a class="rowbtn" href="/item/{{ item.id }}">
             <span>{{ item.title }}</span>
             <span class="t">
-              {%- if item.kind == "todo" and item.due_date %}due {{ item.due_date.strftime("%a") }}
-              {%- elif item.commitment %}{{ item.commitment | capitalize }}
-              {%- elif item.kind == "learn" %}Learn
-              {%- else %}Todo
+              {%- if item.due_date %}due {{ item.due_date.strftime("%a") }}
+              {%- else %}{{ item.rhythm | capitalize }}
               {%- endif %}
             </span>
           </a>

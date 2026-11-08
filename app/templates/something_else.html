@@ -11,13 +11,7 @@
         <a class="rowbtn" href="/item/{{ item.id }}/log">
           <span>
             {{ item.title }}<br>
-            <span class="t">
-              {{ item.category }} ·
-              {%- if item.commitment %} {{ item.commitment | capitalize }}
-              {%- elif item.kind == "learn" %} Learn
-              {%- elif item.kind == "todo" %} Todo
-              {%- endif %}
-            </span>
+            <span class="t">{{ item.category }} · {{ item.rhythm | capitalize }}</span>
           </span>
           <span>›</span>
         </a>

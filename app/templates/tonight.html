@@ -6,11 +6,7 @@
     <div class="card">
       <div class="row-chips">
         <span class="chip">{{ suggestion.category }}</span>
-        {% if suggestion.commitment %}
-          <span class="chip">{{ suggestion.commitment | capitalize }}</span>
-        {% elif suggestion.kind == "todo" %}
-          <span class="chip">Todo</span>
-        {% endif %}
+        <span class="chip">{{ suggestion.rhythm | capitalize }}</span>
       </div>
 
       <h3>{{ suggestion.title }}</h3>
@@ -45,7 +41,7 @@
       {% for item in also_today %}
         <a class="rowbtn" href="/item/{{ item.id }}">
           <span><span class="chk"></span>&nbsp; {{ item.title }}</span>
-          <span class="t">Everyday</span>
+          <span class="t">Daily</span>
         </a>
       {% endfor %}
     </div>

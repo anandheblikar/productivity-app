@@ -4,10 +4,7 @@
 {% block content %}
   <div class="row-chips">
     <span class="chip">{{ item.category }}</span>
-    <span class="chip">{{ item.kind | capitalize }}</span>
-    {% if item.commitment %}
-      <span class="chip">{{ item.commitment | capitalize }}</span>
-    {% endif %}
+    <span class="chip">{{ item.rhythm | capitalize }}</span>
   </div>
 
   {% if item.next_step %}
@@ -18,10 +15,13 @@
 
   <div class="btns">
     <a class="btn pri" href="/item/{{ item.id }}/log">Log a session</a>
-    {% if item.kind == "todo" and item.status == "active" %}
-      {# Todos can be checked off; practice/learn never "finish". #}
+    {% if item.rhythm in ["once", "weekly", "monthly"] and item.status == "active" %}
+      {# A quick "I did it" that needs no written note: a one-off ticks off
+         and leaves; a recurring chore rolls forward to next time. #}
       <form method="post" action="/item/{{ item.id }}/complete">
-        <button class="btn" type="submit">Mark done</button>
+        <button class="btn" type="submit">
+          {{ "Mark done" if item.rhythm == "once" else "Did it today" }}
+        </button>
       </form>
     {% endif %}
   </div>

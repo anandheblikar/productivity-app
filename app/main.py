@@ -28,13 +28,13 @@ from sqlmodel import Session, select
 from app import categorize
 from app.database import get_session, init_db
 from app.models import (
-    KIND_TODO,
+    RHYTHM_ONCE,
+    RHYTHM_ORDER,
     STATUS_ACTIVE,
-    STATUS_DONE,
     Item,
     Log,
 )
-from app.nudge import build_tonight, tiny_version
+from app.nudge import advance_item, build_tonight, tiny_version
 
 # Where this file lives, so we can find templates/, static/ and media/.
 BASE_DIR = Path(__file__).resolve().parent
@@ -171,32 +171,32 @@ def week(request: Request, session: Session = Depends(get_session)):
 # --- Add (GET form, POST save) ----------------------------------------------
 @app.get("/add")
 def add_form(request: Request):
-    return render(request, "add.html", title="Add", back_url="/")
+    return render(request, "add.html", title="Add", back_url="/", rhythms=RHYTHM_ORDER)
 
 
 @app.post("/add")
 def add_save(
     title: str = Form(...),
-    kind: str = Form(...),
-    commitment: str | None = Form(None),
+    rhythm: str = Form(...),
     next_step: str | None = Form(None),
     due_date: str | None = Form(None),
     session: Session = Depends(get_session),
 ):
-    # Todos use a due date and have no commitment; practice/learn are the
-    # other way round. Keep only the field that belongs to this kind.
+    # Work out the due date from the rhythm:
+    #  - once:            the date the user picked (or none)
+    #  - weekly/monthly:  start today so it surfaces right away, then it
+    #                     rolls forward each time it's done
+    #  - daily/anytime:   no due date
     parsed_due = None
-    if kind == KIND_TODO:
-        commitment = None
+    if rhythm == RHYTHM_ONCE:
         if due_date:  # the date input sends "YYYY-MM-DD" (or empty)
             parsed_due = date.fromisoformat(due_date)
-    else:
-        due_date = None
+    elif rhythm in {"weekly", "monthly"}:
+        parsed_due = date.today()
 
     item = Item(
         title=title.strip(),
-        kind=kind,
-        commitment=commitment,
+        rhythm=rhythm,
         due_date=parsed_due,
         next_step=(next_step.strip() if next_step else None),
         category=categorize.categorize(title),  # the app files it for you
@@ -276,18 +276,29 @@ async def log_save(
         media_type=media_type,
     )
     session.add(log)
+
+    # Doing it moves the item along its rhythm: a one-off finishes, a
+    # weekly/monthly rolls to its next date, a daily/anytime just gets the
+    # logged session (which feeds the fair-rotation ordering).
+    advance_item(item, date.today())
+    session.add(item)
+
     session.commit()
 
     # Then back to Tonight — ideally to close the app.
     return RedirectResponse(url="/", status_code=303)
 
 
-# --- Complete a todo --------------------------------------------------------
+# --- Mark done (without logging a note) --------------------------------------
 @app.post("/item/{item_id}/complete")
 def complete_item(item_id: int, session: Session = Depends(get_session)):
+    """A quick "I did it" that doesn't need a written session.
+
+    Used for one-offs (tick it off) and recurring chores (roll to next time).
+    """
     item = session.get(Item, item_id)
     if item is not None:
-        item.status = STATUS_DONE
+        advance_item(item, date.today())
         session.add(item)
         session.commit()
     return RedirectResponse(url="/everything", status_code=303)

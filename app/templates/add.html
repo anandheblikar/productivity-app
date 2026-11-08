@@ -1,5 +1,6 @@
-{# Add: title -> kind -> (commitment OR due date). No category picker;
-   the app files it automatically from the title. #}
+{# Add: title -> rhythm -> (due date, only for one-offs). No category
+   picker; the app files it automatically from the title. An optional
+   "next step" turns anything into a goal you're working towards. #}
 {% extends "base.html" %}
 
 {% block content %}
@@ -8,34 +9,26 @@
     <div class="lbl">TITLE</div>
     <input type="text" name="title" placeholder="e.g. Practice sitar" required autofocus>
 
-    <div class="lbl">KIND</div>
-    <div class="row-chips" id="kinds">
-      {# Radio buttons styled as chips. "Practice" is selected by default. #}
-      <label class="chip"><input type="radio" name="kind" value="practice" checked> Practice</label>
-      <label class="chip"><input type="radio" name="kind" value="learn"> Learn</label>
-      <label class="chip"><input type="radio" name="kind" value="todo"> Todo</label>
+    <div class="lbl">HOW OFTEN?</div>
+    <div class="row-chips" id="rhythms">
+      {# Radio buttons styled as chips. "Daily" is selected by default. #}
+      {% for r in rhythms %}
+        <label class="chip">
+          <input type="radio" name="rhythm" value="{{ r }}" {% if r == "daily" %}checked{% endif %}>
+          {{ r | capitalize }}
+        </label>
+      {% endfor %}
     </div>
 
-    {# Practice & Learn: pick a commitment. #}
-    <div data-for="practice learn">
-      <div class="lbl">EVERYDAY OR OPTIONAL?</div>
-      <div class="row-chips">
-        <label class="chip"><input type="radio" name="commitment" value="everyday" checked> Everyday</label>
-        <label class="chip"><input type="radio" name="commitment" value="optional"> Optional</label>
-      </div>
-    </div>
-
-    {# Learn: an optional "next step" so the nudge can suggest the concrete bit. #}
-    <div data-for="learn">
-      <div class="lbl">NEXT STEP (optional)</div>
-      <input type="text" name="next_step" placeholder="e.g. slow section of Raga Yaman">
-    </div>
-
-    {# Todo: an optional due date instead of a commitment. #}
-    <div data-for="todo">
+    {# A due date, only for one-offs. #}
+    <div data-for="once">
       <div class="lbl">DUE BY (optional)</div>
       <input type="date" name="due_date">
     </div>
+
+    {# An optional "next step" — the old "learn" flavour. Works for anything. #}
+    <div class="lbl">NEXT STEP (optional)</div>
+    <input type="text" name="next_step" placeholder="e.g. slow section of Raga Yaman">
 
     <div class="btns">
       <button class="btn pri" type="submit">Save</button>
@@ -47,23 +40,22 @@
   <div class="box-dash">quick-capture: type a title — the app files it for you</div>
 
   <script>
-    // Small helper: show only the fields that match the chosen kind, and
-    // mark the chosen chips. No build step — plain browser JavaScript.
+    // Small helper: show the due-date field only for one-offs, and mark the
+    // chosen chips. No build step — plain browser JavaScript.
     const form = document.querySelector("form");
 
     function refresh() {
-      const kind = form.querySelector('input[name="kind"]:checked').value;
+      const rhythm = form.querySelector('input[name="rhythm"]:checked').value;
 
-      // Show/hide the kind-specific sections.
+      // Show/hide the rhythm-specific sections.
       form.querySelectorAll("[data-for]").forEach(function (box) {
-        const kinds = box.getAttribute("data-for").split(" ");
-        box.style.display = kinds.includes(kind) ? "" : "none";
+        const rhythms = box.getAttribute("data-for").split(" ");
+        box.style.display = rhythms.includes(rhythm) ? "" : "none";
       });
 
-      // Highlight the selected chip in each group.
+      // Highlight the selected chip.
       form.querySelectorAll(".chip").forEach(function (chip) {
-        const input = chip.querySelector("input");
-        chip.classList.toggle("sel", input.checked);
+        chip.classList.toggle("sel", chip.querySelector("input").checked);
       });
     }
 
