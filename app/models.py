@@ -27,20 +27,32 @@ from sqlmodel import Field, SQLModel
 # field as `NaiveDatetime`, which is exactly what we want here.
 
 
-# --- Allowed values for the "kind" field ------------------------------------
-# A kind describes what sort of thing an item is.
-KIND_PRACTICE = "practice"  # repeats forever, never "done" (e.g. sitar)
-KIND_LEARN = "learn"        # has steps, grows over time (e.g. learn a raga)
-KIND_TODO = "todo"          # a one-off that gets checked off and leaves
+# --- Allowed values for the "rhythm" field ----------------------------------
+# A rhythm is the one axis that describes an item: *how often does it want
+# your attention?* The old "kind" (practice/learn/todo) and "commitment"
+# (everyday/optional) collapse into this single choice.
+RHYTHM_ONCE = "once"        # a one-off; optional due date; finishes & leaves
+RHYTHM_DAILY = "daily"      # an everyday anchor
+RHYTHM_WEEKLY = "weekly"    # repeats every week; comes back when done
+RHYTHM_MONTHLY = "monthly"  # repeats every month; comes back when done
+RHYTHM_ANYTIME = "anytime"  # no schedule; fills leftover time, open-ended
 
-# --- Allowed values for the "commitment" field ------------------------------
-# How much the user is committing to a practice/learn item.
-COMMITMENT_EVERYDAY = "everyday"    # a daily anchor
-COMMITMENT_OPTIONAL = "optional"    # nice-to-do, fills leftover time
+# The rhythms that "come back" on a schedule: doing one rolls its due date
+# forward instead of finishing it.
+RECURRING_RHYTHMS = {RHYTHM_WEEKLY, RHYTHM_MONTHLY}
+
+# The order rhythms appear in the Add form.
+RHYTHM_ORDER = [
+    RHYTHM_ONCE,
+    RHYTHM_DAILY,
+    RHYTHM_WEEKLY,
+    RHYTHM_MONTHLY,
+    RHYTHM_ANYTIME,
+]
 
 # --- Allowed values for the "status" field ----------------------------------
 STATUS_ACTIVE = "active"    # shows up in the app
-STATUS_DONE = "done"        # a finished todo; leaves the active list
+STATUS_DONE = "done"        # a finished one-off; leaves the active list
 
 
 class Item(SQLModel, table=True):
@@ -56,18 +68,17 @@ class Item(SQLModel, table=True):
 
     title: str
 
-    # practice / learn / todo  (see the KIND_* constants above)
-    kind: str
+    # once / daily / weekly / monthly / anytime (see the RHYTHM_* constants).
+    rhythm: str
 
-    # everyday / optional — only meaningful for practice & learn items.
-    # Todos leave this as None and use a due date instead.
-    commitment: str | None = None
-
-    # Mainly for todos: when it's due. None means "no date".
+    # For `once`: when it's due (None = no date). For `weekly`/`monthly`:
+    # the *next* time it comes around — we roll this forward each time it's
+    # done. For `daily`/`anytime` it stays None.
     due_date: date | None = None
 
-    # Mainly for learn items: the concrete next bit to do, so the nudge
-    # can suggest it (e.g. "slow section of Raga Yaman").
+    # The optional "next bit" to do — this is the old "learn" flavour. Any
+    # item can have one; if it does, the nudge shows it (e.g. "slow section
+    # of Raga Yaman"). None means the item is just a habit/task, not a goal.
     next_step: str | None = None
 
     # Auto-assigned by the keyword rules in categorize.py. The user never
