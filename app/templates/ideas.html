@@ -1,0 +1,35 @@
+{# Ideas: the app's own backlog — things to build later. Jot one down,
+   tick it off when it's built, delete when it's not wanted. #}
+{% extends "base.html" %}
+
+{% block content %}
+  <div class="sub">things to build into this app</div>
+
+  {# Add a new idea. #}
+  <form method="post" action="/ideas" class="idea-add">
+    <input type="text" name="text" placeholder="Jot an idea…" required autofocus>
+    <button class="btn pri" type="submit">Add</button>
+  </form>
+
+  {% if ideas %}
+    <div class="list">
+      {% for idea in ideas %}
+        <div class="checkrow {% if idea.done %}done{% endif %}">
+          <form class="checkform" method="post" action="/ideas/{{ idea.id }}/toggle">
+            <button class="checkbox {% if idea.done %}on{% endif %}" type="submit"
+                    aria-label="{% if idea.done %}Un-tick{% else %}Mark built{% endif %}">
+              {% if idea.done %}✓{% endif %}
+            </button>
+          </form>
+          <span class="rowlink">{{ idea.text }}</span>
+          <form method="post" action="/ideas/{{ idea.id }}/delete"
+                onsubmit="return confirm('Delete this idea?');">
+            <button class="x" type="submit" aria-label="Delete idea">✕</button>
+          </form>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="empty">No ideas yet. What would make this app better?</div>
+  {% endif %}
+{% endblock %}

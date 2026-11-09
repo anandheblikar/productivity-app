@@ -271,6 +271,20 @@ textarea { min-height: 92px; resize: vertical; }
 }
 .sortitem.dragging .drag { cursor: grabbing; }
 
+/* Ideas page: the add row and the small delete button. */
+.idea-add { display: flex; gap: 8px; margin: 4px 0 6px; }
+.idea-add input { flex: 1; }
+.checkrow .x {
+  flex: none;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: .8rem;
+  cursor: pointer;
+  padding: 4px 2px;
+}
+.checkrow .x:hover { color: var(--ink); }
+
 /* Inline editing (the item page): click any of these to edit in place. */
 h2.scr { font-size: 1.15rem; font-weight: 600; margin: 2px 0; }
 .editable {

@@ -121,3 +121,16 @@ class Log(SQLModel, table=True):
     # Optional recording saved to the local media/ folder.
     media_path: str | None = None    # e.g. "media/3_1699300000.webm"
     media_type: str | None = None    # "audio" or "video"
+
+
+class Idea(SQLModel, table=True):
+    """A note-to-self about the app itself — something to build later.
+
+    This is separate from Items (your life) — it's the app's own backlog,
+    shown on the Ideas screen.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    text: str
+    done: bool = Field(default=False)   # tick it off once it's built
+    created_at: NaiveDatetime = Field(default_factory=datetime.now)

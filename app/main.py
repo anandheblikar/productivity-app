@@ -37,6 +37,7 @@ from app.models import (
     RHYTHM_WEEKLY,
     STATUS_ACTIVE,
     STATUS_DONE,
+    Idea,
     Item,
     Log,
 )
@@ -220,6 +221,43 @@ def week(request: Request, session: Session = Depends(get_session)):
             )
 
     return render(request, "week.html", title="This week", active="week", rows=rows)
+
+
+# --- Ideas (the app's own backlog) ------------------------------------------
+@app.get("/ideas")
+def ideas(request: Request, session: Session = Depends(get_session)):
+    # Newest ideas first; done ones sink to the bottom.
+    all_ideas = session.exec(select(Idea)).all()
+    all_ideas.sort(key=lambda i: (i.done, -(i.id or 0)))
+    return render(request, "ideas.html", title="Ideas", active="ideas", ideas=all_ideas)
+
+
+@app.post("/ideas")
+def add_idea(text: str = Form(...), session: Session = Depends(get_session)):
+    text = text.strip()
+    if text:
+        session.add(Idea(text=text))
+        session.commit()
+    return RedirectResponse(url="/ideas", status_code=303)
+
+
+@app.post("/ideas/{idea_id}/toggle")
+def toggle_idea(idea_id: int, session: Session = Depends(get_session)):
+    idea = session.get(Idea, idea_id)
+    if idea is not None:
+        idea.done = not idea.done
+        session.add(idea)
+        session.commit()
+    return RedirectResponse(url="/ideas", status_code=303)
+
+
+@app.post("/ideas/{idea_id}/delete")
+def delete_idea(idea_id: int, session: Session = Depends(get_session)):
+    idea = session.get(Idea, idea_id)
+    if idea is not None:
+        session.delete(idea)
+        session.commit()
+    return RedirectResponse(url="/ideas", status_code=303)
 
 
 # --- Add (GET form, POST save) ----------------------------------------------
