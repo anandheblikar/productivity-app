@@ -6,14 +6,23 @@
 {% block content %}
   {% if groups %}
     {% for group in groups %}
-      <div class="group">{{ group.label | upper }}</div>
+      <div class="group groupbar">
+        <span>{{ group.label | upper }}</span>
+        {% if group.rhythm == "once" %}
+          {# Flip the To-do section between tick-boxes and a plain list. #}
+          <span class="viewtoggle">
+            <a href="/view/todos/checklist" class="{% if todo_view != 'list' %}on{% endif %}">☑ checklist</a>
+            <a href="/view/todos/list" class="{% if todo_view == 'list' %}on{% endif %}">☰ list</a>
+          </span>
+        {% endif %}
+      </div>
       <div class="list" data-sortable>
         {% for item in group.members %}
           <div class="sortitem {% if group.rhythm == 'once' and item.status == 'done' %}done{% endif %}"
                draggable="true" data-id="{{ item.id }}">
             <span class="drag" aria-hidden="true">⠿</span>
 
-            {% if group.rhythm == "once" %}
+            {% if group.rhythm == "once" and todo_view != "list" %}
               <form class="checkform" method="post" action="/item/{{ item.id }}/toggle">
                 <button class="checkbox {% if item.status == 'done' %}on{% endif %}" type="submit"
                         draggable="false"

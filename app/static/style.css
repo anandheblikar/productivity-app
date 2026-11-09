@@ -211,6 +211,16 @@ textarea { min-height: 92px; resize: vertical; }
   color: var(--muted);
   margin-top: 8px;
 }
+/* A group header with a control on the right (the To-do view toggle). */
+.groupbar { display: flex; align-items: center; justify-content: space-between; }
+.viewtoggle a {
+  font-family: var(--mono);
+  font-size: .64rem;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 1px 4px;
+}
+.viewtoggle a.on { color: var(--ink); border: 1px solid var(--line); border-radius: 3px; }
 
 /* To-do rows: a clickable checkbox on the left, the name as a link. */
 .checkrow {

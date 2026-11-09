@@ -149,27 +149,41 @@ EVERYTHING_GROUPS = [
 ]
 
 
+# How the To-do section is shown: "checklist" (tick-boxes) or "list" (plain).
+# Remembered in a cookie so the choice sticks between visits.
+TODO_VIEW_COOKIE = "todo_view"
+
+
+@app.get("/view/todos/{mode}")
+def set_todo_view(mode: str):
+    """Switch the To-do section between checklist and plain list, and remember it."""
+    mode = "list" if mode == "list" else "checklist"
+    response = RedirectResponse(url="/everything", status_code=303)
+    response.set_cookie(TODO_VIEW_COOKIE, mode, max_age=60 * 60 * 24 * 365)
+    return response
+
+
 # --- Everything (grouped by rhythm) -----------------------------------------
 @app.get("/everything")
 def everything(request: Request, session: Session = Depends(get_session)):
     all_items = session.exec(select(Item)).all()
+    todo_view = request.cookies.get(TODO_VIEW_COOKIE, "checklist")
 
     # Group items by rhythm, in the order above.
-    #  - To-dos (once): keep *done* ones visible too, ticked and struck
-    #    through, so an accidental tick is easy to undo. Active ones first.
+    #  - To-dos (once): in checklist mode we also keep *done* ones visible
+    #    (ticked), so a tick is reversible; in plain-list mode we show only
+    #    active ones, since there's no box to tick.
     #  - Every other group: only active items (those never "finish").
-    # Within a group: dated items soonest-first, then undated alphabetically.
+    # Within a group, use the manual drag order (position).
     groups = []
     for rhythm, label in EVERYTHING_GROUPS:
-        if rhythm == RHYTHM_ONCE:
-            # To-dos keep done ones visible (ticked) so a tap is reversible.
+        if rhythm == RHYTHM_ONCE and todo_view == "checklist":
             in_group = [i for i in all_items if i.rhythm == RHYTHM_ONCE]
         else:
             in_group = [
                 i for i in all_items
                 if i.rhythm == rhythm and i.status == STATUS_ACTIVE
             ]
-        # Manual order: whatever the user dragged things into.
         in_group.sort(key=lambda i: i.position)
         if in_group:
             groups.append({"label": label, "rhythm": rhythm, "members": in_group})
@@ -180,6 +194,7 @@ def everything(request: Request, session: Session = Depends(get_session)):
         title="Everything",
         active="everything",
         groups=groups,
+        todo_view=todo_view,
     )
 
 
