@@ -1,24 +1,41 @@
-{# Item detail: its chips, next step, and the history of logged sessions. #}
+{# Item detail — and its editor. Everything here is editable in place:
+   click the title / next step / notes to change them, pick a rhythm, set a
+   due date. Changes save on their own. Below: log a session, the history,
+   and (at the very bottom) delete. #}
 {% extends "base.html" %}
 
 {% block content %}
+  {# The name — click to rename. #}
+  <h2 class="scr editable" contenteditable="true" data-field="title"
+      data-placeholder="Name…">{{ item.title }}</h2>
+
   <div class="row-chips">
     <span class="chip">{{ item.category }}</span>
-    <span class="chip">{{ item.rhythm | capitalize }}</span>
+    <select class="chip-select" data-field="rhythm" aria-label="How often">
+      {% for r in rhythms %}
+        <option value="{{ r }}" {% if r == item.rhythm %}selected{% endif %}>{{ r | capitalize }}</option>
+      {% endfor %}
+    </select>
   </div>
 
-  {% if item.next_step %}
-    <div class="sub">next: {{ item.next_step }}</div>
-  {% elif item.due_date %}
-    <div class="sub">due {{ item.due_date.strftime("%a %b %-d") }}</div>
-  {% endif %}
+  {# Due date — only meaningful for one-offs. #}
+  <div data-due {% if item.rhythm != "once" %}hidden{% endif %}>
+    <div class="lbl">DUE BY</div>
+    <input type="date" data-field="due_date"
+           value="{% if item.rhythm == 'once' and item.due_date %}{{ item.due_date.isoformat() }}{% endif %}">
+  </div>
+
+  <div class="lbl">NEXT STEP</div>
+  <div class="editable next" contenteditable="true" data-field="next_step"
+       data-placeholder="Add a next step…">{{ item.next_step or "" }}</div>
+
+  <div class="lbl">NOTES</div>
+  <div class="editable canvas" contenteditable="true" data-field="notes"
+       data-placeholder="{{ canvas_hint }}">{{ item.notes or "" }}</div>
 
   <div class="btns">
     <a class="btn pri" href="/item/{{ item.id }}/log">Log a session</a>
-    <a class="btn" href="/item/{{ item.id }}/edit">Edit</a>
     {% if item.rhythm in ["once", "weekly", "monthly"] and item.status == "active" %}
-      {# A quick "I did it" that needs no written note: a one-off ticks off
-         and leaves; a recurring chore rolls forward to next time. #}
       <form method="post" action="/item/{{ item.id }}/complete">
         <button class="btn" type="submit">
           {{ "Mark done" if item.rhythm == "once" else "Did it today" }}
@@ -42,4 +59,45 @@
   {% else %}
     <div class="empty">No sessions logged yet.</div>
   {% endif %}
+
+  <div class="spacer"></div>
+
+  {# Delete lives at the bottom, confirm-guarded, so it's never a mis-tap. #}
+  <form method="post" action="/item/{{ item.id }}/delete"
+        onsubmit="return confirm('Delete this item and its history for good?');">
+    <button class="btn danger" type="submit">Delete this item</button>
+  </form>
+
+  <script>
+    // Inline editing: send each change to the server as you make it.
+    const ID = {{ item.id }};
+
+    async function save(field, value) {
+      await fetch(`/item/${ID}/field`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ field: field, value: value }),
+      });
+    }
+
+    // Click-to-edit text fields: save when you click away (on blur).
+    document.querySelectorAll('[contenteditable][data-field]').forEach(function (el) {
+      el.addEventListener("blur", function () {
+        save(el.dataset.field, el.innerText.trim());
+      });
+    });
+
+    // Rhythm dropdown: save, then reload so the due-date box and buttons update.
+    const rhythm = document.querySelector('select[data-field="rhythm"]');
+    rhythm.addEventListener("change", async function () {
+      await save("rhythm", rhythm.value);
+      location.reload();
+    });
+
+    // Due-date picker: save on change.
+    const due = document.querySelector('input[data-field="due_date"]');
+    if (due) {
+      due.addEventListener("change", function () { save("due_date", due.value); });
+    }
+  </script>
 {% endblock %}

@@ -49,7 +49,9 @@ body {
 .phone {
   width: 390px;
   max-width: 100%;
-  min-height: min(860px, 94vh);
+  /* A fixed height (not min-height) so the body never grows past the screen:
+     the content scrolls INSIDE the phone and the bottom tabs stay pinned. */
+  height: min(860px, 94vh);
   background: var(--frame);
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -248,6 +250,45 @@ textarea { min-height: 92px; resize: vertical; }
 }
 /* A ticked-off to-do: greyed and struck through, but still visible. */
 .checkrow.done .rowlink { color: var(--muted); text-decoration: line-through; }
+
+/* Inline editing (the item page): click any of these to edit in place. */
+h2.scr { font-size: 1.15rem; font-weight: 600; margin: 2px 0; }
+.editable {
+  border-radius: 4px;
+  padding: 3px 5px;
+  margin: 0 -5px;              /* keep text aligned with the rest */
+  outline: none;
+  cursor: text;
+}
+.editable:hover { background: var(--fill); }
+.editable:focus { background: var(--fill); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.editable.next { font-size: .85rem; }
+.editable.canvas {
+  min-height: 84px;
+  font-size: .85rem;
+  white-space: pre-wrap;       /* keep the user's line breaks */
+}
+/* Faint prompt text when an editable field is empty. */
+.editable:empty::before {
+  content: attr(data-placeholder);
+  color: var(--muted);
+}
+
+/* The rhythm dropdown, styled like a chip. */
+.chip-select {
+  font-family: inherit;
+  font-size: .72rem;
+  padding: 3px 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: var(--frame);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* Delete button: quiet, but clearly set apart. */
+.btn.danger { color: var(--muted); border-color: var(--line); }
+.btn.danger:hover { color: var(--ink); border-color: var(--line-strong); }
 .chk {
   display: inline-block;
   width: 15px;
@@ -284,8 +325,9 @@ textarea { min-height: 92px; resize: vertical; }
   opacity: .45;
 }
 
-/* Bottom tab bar. */
-.tabbar { display: flex; border-top: 1px solid var(--line); }
+/* Bottom tab bar — pinned: flex:none keeps it from shrinking as the
+   content above it scrolls. */
+.tabbar { display: flex; border-top: 1px solid var(--line); flex: none; background: var(--frame); }
 .tab {
   flex: 1;
   border: none;

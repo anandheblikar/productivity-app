@@ -33,6 +33,25 @@ engine = create_engine(f"sqlite:///{DB_FILE}", echo=False)
 def init_db() -> None:
     """Create the database tables if they don't already exist."""
     SQLModel.metadata.create_all(engine)
+    _add_missing_columns()
+
+
+def _add_missing_columns() -> None:
+    """Add columns that exist on the model but not yet in an older database.
+
+    SQLite's ``create_all`` only creates whole tables; it won't add a new
+    column to a table that already exists. So when we add a field to a model
+    (like Item.notes), we patch older databases here with a one-line
+    ``ALTER TABLE`` — this keeps existing data instead of wiping the file.
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(engine)
+    item_columns = {col["name"] for col in inspector.get_columns("item")}
+
+    if "notes" not in item_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE item ADD COLUMN notes TEXT DEFAULT ''"))
 
 
 def get_session() -> Iterator[Session]:

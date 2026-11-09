@@ -23,6 +23,7 @@ from fastapi import Depends, FastAPI, Form, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app import categorize
@@ -75,6 +76,28 @@ def render(request: Request, template_name: str, **context):
     context["now"] = datetime.now()
     context["css_version"] = css_version()
     return templates.TemplateResponse(request, template_name, context)
+
+
+# Smart hints for each item's free-form "canvas". We guess from keywords in
+# the title what the user might keep there, and show it as a faint prompt in
+# the empty box. If we can't guess, we return "" and leave the canvas blank.
+CANVAS_HINTS: list[tuple[list[str], str]] = [
+    (["sitar", "raga", "music", "guitar", "sing"], "Ragas or pieces to work on, tunings, notes per practice…"),
+    (["cook", "recipe", "meal"], "Recipes and meals to try, ingredients, who liked what…"),
+    (["read", "book"], "Reading list — titles, where you're up to, quotes…"),
+    (["fittak", "weight", "kg", "gym", "run", "exercise"], "Targets, workouts, and how each weigh-in went…"),
+    (["godly", "pray", "mantra", "meditate"], "Topics, readings, reflections…"),
+    (["python", "git", "code", "build"], "Project ideas, links, things to learn next…"),
+]
+
+
+def canvas_prompt(item: Item) -> str:
+    """A gentle suggestion of what to put in an item's canvas (or "")."""
+    text = item.title.lower()
+    for keywords, hint in CANVAS_HINTS:
+        if any(keyword in text for keyword in keywords):
+            return hint
+    return ""  # nothing sensible to suggest — leave the canvas blank
 
 
 # --- Tonight ----------------------------------------------------------------
@@ -268,6 +291,8 @@ def item_detail(
         back_url="/everything",
         item=item,
         logs=logs,
+        rhythms=RHYTHM_ORDER,
+        canvas_hint=canvas_prompt(item),
     )
 
 
@@ -360,53 +385,52 @@ def toggle_item(item_id: int, session: Session = Depends(get_session)):
     return RedirectResponse(url="/everything", status_code=303)
 
 
-# --- Edit an item (GET form, POST save) -------------------------------------
-@app.get("/item/{item_id}/edit")
-def edit_form(item_id: int, request: Request, session: Session = Depends(get_session)):
-    item = session.get(Item, item_id)
-    if item is None:
-        return RedirectResponse(url="/everything", status_code=303)
-    return render(
-        request,
-        "edit.html",
-        title=f"Edit — {item.title}",
-        back_url=f"/item/{item_id}",
-        item=item,
-        rhythms=RHYTHM_ORDER,
-    )
+# --- Edit a single field inline (from the item page) ------------------------
+class FieldUpdate(BaseModel):
+    """One edit made inline on the item page: which field, and its new value."""
+
+    field: str
+    value: str | None = None
 
 
-@app.post("/item/{item_id}/edit")
-def edit_save(
+@app.post("/item/{item_id}/field", status_code=204)
+def update_field(
     item_id: int,
-    title: str = Form(...),
-    rhythm: str = Form(...),
-    next_step: str | None = Form(None),
-    due_date: str | None = Form(None),
+    payload: FieldUpdate,
     session: Session = Depends(get_session),
 ):
+    """Save one edited field. Called by the item page as you edit in place.
+
+    Only a known, safe set of fields can be changed this way.
+    """
     item = session.get(Item, item_id)
     if item is None:
-        return RedirectResponse(url="/everything", status_code=303)
+        return
 
-    # Work out the due date from the (possibly changed) rhythm. For a
-    # recurring item we keep its existing schedule unless it has none yet.
-    if rhythm == RHYTHM_ONCE:
-        item.due_date = date.fromisoformat(due_date) if due_date else None
-    elif rhythm in {RHYTHM_WEEKLY, RHYTHM_MONTHLY}:
-        if item.due_date is None:
+    value = (payload.value or "").strip()
+
+    if payload.field == "title":
+        if value:  # don't let the title be blanked out
+            item.title = value
+            item.category = categorize.categorize(value)  # re-file on rename
+    elif payload.field == "next_step":
+        item.next_step = value or None
+    elif payload.field == "notes":
+        item.notes = value
+    elif payload.field == "rhythm" and value in RHYTHM_ORDER:
+        item.rhythm = value
+        # Keep the due date consistent with the new rhythm.
+        if value in {RHYTHM_WEEKLY, RHYTHM_MONTHLY} and item.due_date is None:
             item.due_date = date.today()
-    else:  # daily / anytime
-        item.due_date = None
-
-    item.title = title.strip()
-    item.rhythm = rhythm
-    item.next_step = next_step.strip() if next_step else None
-    item.category = categorize.categorize(item.title)  # re-file on rename
+        elif value in {RHYTHM_DAILY, RHYTHM_ANYTIME}:
+            item.due_date = None
+    elif payload.field == "due_date":
+        item.due_date = date.fromisoformat(value) if value else None
+    else:
+        return  # unknown field — ignore
 
     session.add(item)
     session.commit()
-    return RedirectResponse(url=f"/item/{item_id}", status_code=303)
 
 
 # --- Delete an item for good -------------------------------------------------

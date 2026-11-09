@@ -81,6 +81,11 @@ class Item(SQLModel, table=True):
     # of Raga Yaman"). None means the item is just a habit/task, not a goal.
     next_step: str | None = None
 
+    # A free-form "canvas" for whatever this item needs — recipes for a
+    # cooking item, ragas for sitar, a reading list, links... Shown on the
+    # item's page and freely editable. Empty by default.
+    notes: str = ""
+
     # Auto-assigned by the keyword rules in categorize.py. The user never
     # picks this. It only exists to power the weekly review.
     category: str = "Other"
