@@ -28,8 +28,12 @@ from sqlmodel import Session, select
 from app import categorize
 from app.database import get_session, init_db
 from app.models import (
+    RHYTHM_ANYTIME,
+    RHYTHM_DAILY,
+    RHYTHM_MONTHLY,
     RHYTHM_ONCE,
     RHYTHM_ORDER,
+    RHYTHM_WEEKLY,
     STATUS_ACTIVE,
     Item,
     Log,
@@ -97,7 +101,19 @@ def something_else(request: Request, session: Session = Depends(get_session)):
     )
 
 
-# --- Everything (grouped by category) ---------------------------------------
+# The order the Everything screen groups things in, with a friendly heading
+# for each rhythm. Category is deliberately NOT shown here — it's a hidden
+# field that only powers the weekly review.
+EVERYTHING_GROUPS = [
+    (RHYTHM_DAILY, "Daily"),
+    (RHYTHM_WEEKLY, "Weekly"),
+    (RHYTHM_MONTHLY, "Monthly"),
+    (RHYTHM_ONCE, "To-do"),
+    (RHYTHM_ANYTIME, "Anytime"),
+]
+
+
+# --- Everything (grouped by rhythm) -----------------------------------------
 @app.get("/everything")
 def everything(request: Request, session: Session = Depends(get_session)):
     # Only active items show here (done todos leave the list).
@@ -105,19 +121,16 @@ def everything(request: Request, session: Session = Depends(get_session)):
         select(Item).where(Item.status == STATUS_ACTIVE)
     ).all()
 
-    # Group items by category, in the fixed category order.
+    # Group items by rhythm, in the order above. Within a group, show dated
+    # items soonest-first, then the undated ones alphabetically.
     groups = []
-    for name in categorize.CATEGORY_ORDER:
-        in_group = [item for item in items if item.category == name]
+    for rhythm, label in EVERYTHING_GROUPS:
+        in_group = [item for item in items if item.rhythm == rhythm]
+        in_group.sort(
+            key=lambda i: (i.due_date is None, i.due_date or date.max, i.title.lower())
+        )
         if in_group:
-            groups.append(
-                {
-                    "name": name,
-                    "emoji": categorize.CATEGORY_EMOJI[name],
-                    # Not "items": that name clashes with dict.items() in templates.
-                    "members": in_group,
-                }
-            )
+            groups.append({"label": label, "members": in_group})
 
     return render(
         request,

@@ -1,21 +1,18 @@
-{# Everything: all active items, grouped by their auto-assigned category. #}
+{# Everything: all active items, grouped by rhythm. Category is intentionally
+   hidden here — it only exists to power the weekly review. #}
 {% extends "base.html" %}
 
 {% block content %}
-  <div class="sub">grouped automatically</div>
-
   {% if groups %}
     {% for group in groups %}
-      <div class="group">{{ group.emoji }} {{ group.name | upper }}</div>
+      <div class="group">{{ group.label | upper }}</div>
       <div class="list">
         {% for item in group.members %}
           <a class="rowbtn" href="/item/{{ item.id }}">
             <span>{{ item.title }}</span>
-            <span class="t">
-              {%- if item.due_date %}due {{ item.due_date.strftime("%a") }}
-              {%- else %}{{ item.rhythm | capitalize }}
-              {%- endif %}
-            </span>
+            {% if item.due_date %}
+              <span class="t">due {{ item.due_date.strftime("%-d %b") }}</span>
+            {% endif %}
           </a>
         {% endfor %}
       </div>
