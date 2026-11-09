@@ -225,11 +225,19 @@ textarea { min-height: 92px; resize: vertical; }
   border: 1px solid var(--line-strong);
   border-radius: 3px;
   background: none;
+  color: var(--frame);
   cursor: pointer;
   flex: none;
   padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .7rem;
+  line-height: 1;
 }
 .checkbox:hover { background: var(--fill); }
+.checkbox.on { background: var(--ink); border-color: var(--ink); }
+.checkbox.on:hover { background: var(--ink); }
 .rowlink {
   flex: 1;
   padding: 6px 0;
@@ -238,6 +246,8 @@ textarea { min-height: 92px; resize: vertical; }
   color: var(--ink);
   text-decoration: none;
 }
+/* A ticked-off to-do: greyed and struck through, but still visible. */
+.checkrow.done .rowlink { color: var(--muted); text-decoration: line-through; }
 .chk {
   display: inline-block;
   width: 15px;

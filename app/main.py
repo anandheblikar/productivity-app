@@ -35,6 +35,7 @@ from app.models import (
     RHYTHM_ORDER,
     RHYTHM_WEEKLY,
     STATUS_ACTIVE,
+    STATUS_DONE,
     Item,
     Log,
 )
@@ -116,19 +117,33 @@ EVERYTHING_GROUPS = [
 # --- Everything (grouped by rhythm) -----------------------------------------
 @app.get("/everything")
 def everything(request: Request, session: Session = Depends(get_session)):
-    # Only active items show here (done todos leave the list).
-    items = session.exec(
-        select(Item).where(Item.status == STATUS_ACTIVE)
-    ).all()
+    all_items = session.exec(select(Item)).all()
 
-    # Group items by rhythm, in the order above. Within a group, show dated
-    # items soonest-first, then the undated ones alphabetically.
+    # Group items by rhythm, in the order above.
+    #  - To-dos (once): keep *done* ones visible too, ticked and struck
+    #    through, so an accidental tick is easy to undo. Active ones first.
+    #  - Every other group: only active items (those never "finish").
+    # Within a group: dated items soonest-first, then undated alphabetically.
     groups = []
     for rhythm, label in EVERYTHING_GROUPS:
-        in_group = [item for item in items if item.rhythm == rhythm]
-        in_group.sort(
-            key=lambda i: (i.due_date is None, i.due_date or date.max, i.title.lower())
-        )
+        if rhythm == RHYTHM_ONCE:
+            in_group = [i for i in all_items if i.rhythm == RHYTHM_ONCE]
+            in_group.sort(
+                key=lambda i: (
+                    i.status == STATUS_DONE,
+                    i.due_date is None,
+                    i.due_date or date.max,
+                    i.title.lower(),
+                )
+            )
+        else:
+            in_group = [
+                i for i in all_items
+                if i.rhythm == rhythm and i.status == STATUS_ACTIVE
+            ]
+            in_group.sort(
+                key=lambda i: (i.due_date is None, i.due_date or date.max, i.title.lower())
+            )
         if in_group:
             groups.append({"label": label, "rhythm": rhythm, "members": in_group})
 
@@ -312,6 +327,23 @@ def complete_item(item_id: int, session: Session = Depends(get_session)):
     item = session.get(Item, item_id)
     if item is not None:
         advance_item(item, date.today())
+        session.add(item)
+        session.commit()
+    return RedirectResponse(url="/everything", status_code=303)
+
+
+# --- Tick a to-do on/off (reversible) ----------------------------------------
+@app.post("/item/{item_id}/toggle")
+def toggle_item(item_id: int, session: Session = Depends(get_session)):
+    """Flip a one-off between active and done.
+
+    This powers the checkbox in the Everything list. It's reversible on
+    purpose — a mis-tap just un-ticks — and the item stays in the list
+    either way, so nothing disappears out from under you.
+    """
+    item = session.get(Item, item_id)
+    if item is not None and item.rhythm == RHYTHM_ONCE:
+        item.status = STATUS_ACTIVE if item.status == STATUS_DONE else STATUS_DONE
         session.add(item)
         session.commit()
     return RedirectResponse(url="/everything", status_code=303)

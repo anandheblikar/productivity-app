@@ -10,10 +10,15 @@
       <div class="list">
         {% for item in group.members %}
           {% if group.rhythm == "once" %}
-            {# To-do row: a checkbox that ticks it off, plus the name. #}
-            <div class="checkrow">
-              <form class="checkform" method="post" action="/item/{{ item.id }}/complete">
-                <button class="checkbox" type="submit" aria-label="Tick off {{ item.title }}"></button>
+            {# To-do row: a checkbox you can tick AND un-tick. Ticked items
+               stay here (checked + struck through), so nothing vanishes. #}
+            {% set is_done = item.status == "done" %}
+            <div class="checkrow {% if is_done %}done{% endif %}">
+              <form class="checkform" method="post" action="/item/{{ item.id }}/toggle">
+                <button class="checkbox {% if is_done %}on{% endif %}" type="submit"
+                        aria-label="{% if is_done %}Un-tick{% else %}Tick off{% endif %} {{ item.title }}">
+                  {% if is_done %}✓{% endif %}
+                </button>
               </form>
               <a class="rowlink" href="/item/{{ item.id }}">{{ item.title }}</a>
             </div>
