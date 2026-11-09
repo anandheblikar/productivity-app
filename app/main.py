@@ -40,6 +40,7 @@ from app.models import (
     Idea,
     Item,
     Log,
+    Page,
 )
 from app.nudge import advance_item, build_tonight, tiny_version
 
@@ -334,6 +335,11 @@ def item_detail(
         select(Log).where(Log.item_id == item_id).order_by(Log.done_at.desc())
     ).all()
 
+    # This item's sub-pages, in order.
+    pages = session.exec(
+        select(Page).where(Page.item_id == item_id).order_by(Page.position)
+    ).all()
+
     return render(
         request,
         "detail.html",
@@ -341,9 +347,67 @@ def item_detail(
         back_url="/everything",
         item=item,
         logs=logs,
+        pages=pages,
         rhythms=RHYTHM_ORDER,
         canvas_hint=canvas_prompt(item),
     )
+
+
+# --- Sub-pages on an item ----------------------------------------------------
+@app.post("/item/{item_id}/pages")
+def add_page(item_id: int, session: Session = Depends(get_session)):
+    """Create a new, empty sub-page on an item."""
+    item = session.get(Item, item_id)
+    if item is None:
+        return RedirectResponse(url="/everything", status_code=303)
+
+    positions = session.exec(
+        select(Page.position).where(Page.item_id == item_id)
+    ).all()
+    next_position = (max(positions) + 1) if positions else 0
+
+    session.add(Page(item_id=item_id, position=next_position))
+    session.commit()
+    return RedirectResponse(url=f"/item/{item_id}", status_code=303)
+
+
+class PageField(BaseModel):
+    """One inline edit to a page: which field (title/content) and its value."""
+
+    field: str
+    value: str | None = None
+
+
+@app.post("/page/{page_id}/field", status_code=204)
+def update_page_field(
+    page_id: int, payload: PageField, session: Session = Depends(get_session)
+):
+    """Save a page's edited title or content (called as you type)."""
+    page = session.get(Page, page_id)
+    if page is None:
+        return
+
+    value = (payload.value or "").strip()
+    if payload.field == "title":
+        page.title = value or "Untitled"   # never leave a page nameless
+    elif payload.field == "content":
+        page.content = value
+    else:
+        return
+
+    session.add(page)
+    session.commit()
+
+
+@app.post("/page/{page_id}/delete")
+def delete_page(page_id: int, session: Session = Depends(get_session)):
+    page = session.get(Page, page_id)
+    if page is None:
+        return RedirectResponse(url="/everything", status_code=303)
+    item_id = page.item_id
+    session.delete(page)
+    session.commit()
+    return RedirectResponse(url=f"/item/{item_id}", status_code=303)
 
 
 # --- Log a session (GET form, POST save) ------------------------------------
@@ -511,10 +575,11 @@ def reorder(payload: Reorder, session: Session = Depends(get_session)):
 def delete_item(item_id: int, session: Session = Depends(get_session)):
     item = session.get(Item, item_id)
     if item is not None:
-        # Remove its logged sessions first, then the item itself.
-        logs = session.exec(select(Log).where(Log.item_id == item_id)).all()
-        for log in logs:
+        # Remove its logged sessions and sub-pages first, then the item.
+        for log in session.exec(select(Log).where(Log.item_id == item_id)).all():
             session.delete(log)
+        for page in session.exec(select(Page).where(Page.item_id == item_id)).all():
+            session.delete(page)
         session.delete(item)
         session.commit()
     return RedirectResponse(url="/everything", status_code=303)

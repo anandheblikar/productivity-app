@@ -1,17 +1,16 @@
-{# Item detail — and its editor. Everything here is editable in place:
-   click the title / next step / notes to change them, pick a rhythm, set a
-   due date. Changes save on their own. Below: log a session, the history,
-   and (at the very bottom) delete. #}
+{# Item detail — and its editor. Click the title / next step / notes to edit
+   in place (they autosave). Add named sub-pages for whatever this item
+   needs. Log sessions, see history, and delete at the bottom. #}
 {% extends "base.html" %}
 
 {% block content %}
   {# The name — click to rename. #}
   <h2 class="scr editable" contenteditable="true" data-field="title"
-      data-placeholder="Name…">{{ item.title }}</h2>
+      data-url="/item/{{ item.id }}/field" data-placeholder="Name…">{{ item.title }}</h2>
 
   <div class="row-chips">
     <span class="chip">{{ item.category }}</span>
-    <select class="chip-select" data-field="rhythm" aria-label="How often">
+    <select class="chip-select" data-field="rhythm" data-url="/item/{{ item.id }}/field" aria-label="How often">
       {% for r in rhythms %}
         <option value="{{ r }}" {% if r == item.rhythm %}selected{% endif %}>{{ r | capitalize }}</option>
       {% endfor %}
@@ -21,17 +20,37 @@
   {# Due date — only meaningful for one-offs. #}
   <div data-due {% if item.rhythm != "once" %}hidden{% endif %}>
     <div class="lbl">DUE BY</div>
-    <input type="date" data-field="due_date"
+    <input type="date" data-field="due_date" data-url="/item/{{ item.id }}/field"
            value="{% if item.rhythm == 'once' and item.due_date %}{{ item.due_date.isoformat() }}{% endif %}">
   </div>
 
   <div class="lbl">NEXT STEP</div>
   <div class="editable next" contenteditable="true" data-field="next_step"
-       data-placeholder="Add a next step…">{{ item.next_step or "" }}</div>
+       data-url="/item/{{ item.id }}/field" data-placeholder="Add a next step…">{{ item.next_step or "" }}</div>
 
   <div class="lbl">NOTES</div>
   <div class="editable canvas" contenteditable="true" data-field="notes"
-       data-placeholder="{{ canvas_hint }}">{{ item.notes or "" }}</div>
+       data-url="/item/{{ item.id }}/field" data-placeholder="{{ canvas_hint }}">{{ item.notes or "" }}</div>
+
+  {# Sub-pages: add as many as you like, each with its own name and body. #}
+  <div class="lbl">PAGES</div>
+  {% for page in pages %}
+    <div class="page">
+      <div class="page-head">
+        <div class="editable pagetitle" contenteditable="true" data-field="title"
+             data-url="/page/{{ page.id }}/field" data-placeholder="Page name…">{{ page.title }}</div>
+        <form method="post" action="/page/{{ page.id }}/delete"
+              onsubmit="return confirm('Delete this page?');">
+          <button class="x" type="submit" aria-label="Delete page">✕</button>
+        </form>
+      </div>
+      <div class="editable canvas" contenteditable="true" data-field="content"
+           data-url="/page/{{ page.id }}/field" data-placeholder="Add or log stuff here…">{{ page.content }}</div>
+    </div>
+  {% endfor %}
+  <form method="post" action="/item/{{ item.id }}/pages">
+    <button class="btn addpage" type="submit">+ New page</button>
+  </form>
 
   <div class="btns">
     <a class="btn pri" href="/item/{{ item.id }}/log">Log a session</a>
@@ -69,35 +88,35 @@
   </form>
 
   <script>
-    // Inline editing: send each change to the server as you make it.
-    const ID = {{ item.id }};
-
-    async function save(field, value) {
-      await fetch(`/item/${ID}/field`, {
+    // Inline editing: send each change to its own endpoint as you make it.
+    // Every editable element carries a data-url telling us where to save.
+    async function post(url, field, value) {
+      await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ field: field, value: value }),
       });
     }
 
-    // Click-to-edit text fields: save when you click away (on blur).
+    // Click-to-edit text fields (item title/next-step/notes and page
+    // title/content): save when you click away.
     document.querySelectorAll('[contenteditable][data-field]').forEach(function (el) {
       el.addEventListener("blur", function () {
-        save(el.dataset.field, el.innerText.trim());
+        post(el.dataset.url, el.dataset.field, el.innerText.trim());
       });
     });
 
     // Rhythm dropdown: save, then reload so the due-date box and buttons update.
     const rhythm = document.querySelector('select[data-field="rhythm"]');
     rhythm.addEventListener("change", async function () {
-      await save("rhythm", rhythm.value);
+      await post(rhythm.dataset.url, "rhythm", rhythm.value);
       location.reload();
     });
 
     // Due-date picker: save on change.
     const due = document.querySelector('input[data-field="due_date"]');
     if (due) {
-      due.addEventListener("change", function () { save("due_date", due.value); });
+      due.addEventListener("change", function () { post(due.dataset.url, "due_date", due.value); });
     }
   </script>
 {% endblock %}

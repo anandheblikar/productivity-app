@@ -333,6 +333,18 @@ h2.scr { font-size: 1.15rem; font-weight: 600; margin: 2px 0; }
 /* Delete button: quiet, but clearly set apart. */
 .btn.danger { color: var(--muted); border-color: var(--line); }
 .btn.danger:hover { color: var(--ink); border-color: var(--line-strong); }
+
+/* Sub-pages on an item. */
+.page {
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  padding: 8px 9px;
+  margin-top: 6px;
+}
+.page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; }
+.pagetitle { font-weight: 600; font-size: .9rem; flex: 1; }
+.page .canvas { min-height: 48px; margin-top: 4px; }
+.btn.addpage { font-size: .78rem; padding: 5px 10px; margin-top: 6px; }
 .chk {
   display: inline-block;
   width: 15px;

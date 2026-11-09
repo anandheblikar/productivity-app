@@ -123,6 +123,22 @@ class Log(SQLModel, table=True):
     media_type: str | None = None    # "audio" or "video"
 
 
+class Page(SQLModel, table=True):
+    """A named sub-page attached to an item.
+
+    Each item can have any number of these — e.g. Fittak might have
+    "Weigh-ins", "Workouts", "Targets". A page is just a title plus a
+    free-form body you can edit; rename or delete it any time.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    item_id: int = Field(foreign_key="item.id")
+    title: str = "New page"
+    content: str = ""
+    position: int = Field(default=0)   # order under the item
+    created_at: NaiveDatetime = Field(default_factory=datetime.now)
+
+
 class Idea(SQLModel, table=True):
     """A note-to-self about the app itself — something to build later.
 
