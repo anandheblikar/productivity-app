@@ -59,10 +59,21 @@ app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="stat
 app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
 
 
+def css_version() -> int:
+    """The stylesheet's last-modified time, used to bust the browser cache.
+
+    We append this to the stylesheet URL (style.css?v=...). Whenever the CSS
+    file changes the number changes, so the browser fetches the new version
+    instead of showing a stale cached copy.
+    """
+    return int((BASE_DIR / "static" / "style.css").stat().st_mtime)
+
+
 def render(request: Request, template_name: str, **context):
     """Render a template, always including the current time for the top bar."""
     context["request"] = request
     context["now"] = datetime.now()
+    context["css_version"] = css_version()
     return templates.TemplateResponse(request, template_name, context)
 
 
