@@ -18,3 +18,6 @@ wheels/
 # Uploaded recordings (saved locally, not committed)
 media/
 .pytest_cache/
+
+# Personal seed data — stays on this machine, never committed
+seed_my_items.py

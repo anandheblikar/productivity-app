@@ -44,10 +44,10 @@ CATEGORY_EMOJI = {
 # app a new word, just add it to the right list here.
 CATEGORY_RULES: list[tuple[str, list[str]]] = [
     (CATEGORY_MUSIC, ["sitar", "raga", "music", "sing", "guitar", "tabla", "riyaz"]),
-    (CATEGORY_SPIRITUAL, ["mantra", "pray", "prayer", "meditate", "meditation", "gayatri", "chant"]),
-    (CATEGORY_HEALTH, ["run", "gym", "exercise", "workout", "stretch", "walk", "yoga", "dentist", "doctor"]),
-    (CATEGORY_MIND, ["read", "learn", "code", "study", "write", "book", "course"]),
-    (CATEGORY_LIFE, ["bill", "buy", "email", "call", "clean", "pay", "book the", "errand", "groceries"]),
+    (CATEGORY_SPIRITUAL, ["mantra", "pray", "prayer", "meditate", "meditation", "gayatri", "chant", "godly"]),
+    (CATEGORY_HEALTH, ["run", "gym", "exercise", "workout", "stretch", "walk", "yoga", "dentist", "doctor", "weight", "kg"]),
+    (CATEGORY_MIND, ["read", "learn", "code", "study", "write", "book", "course", "python", "git"]),
+    (CATEGORY_LIFE, ["bill", "buy", "email", "call", "clean", "pay", "book the", "errand", "groceries", "house", "family", "friend", "cook"]),
 ]
 
 
