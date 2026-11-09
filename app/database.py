@@ -53,6 +53,12 @@ def _add_missing_columns() -> None:
         with engine.begin() as conn:
             conn.execute(text("ALTER TABLE item ADD COLUMN notes TEXT DEFAULT ''"))
 
+    if "position" not in item_columns:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE item ADD COLUMN position INTEGER DEFAULT 0"))
+            # Give existing rows a stable starting order (by id).
+            conn.execute(text("UPDATE item SET position = id"))
+
 
 def get_session() -> Iterator[Session]:
     """Yield a database session, closing it when the request is done.

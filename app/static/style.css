@@ -248,8 +248,28 @@ textarea { min-height: 92px; resize: vertical; }
   color: var(--ink);
   text-decoration: none;
 }
+
+/* Draggable rows in the Everything list. */
+.sortitem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+}
+.sortitem:last-child { border-bottom: none; }
+.sortitem.dragging { opacity: .4; }
 /* A ticked-off to-do: greyed and struck through, but still visible. */
-.checkrow.done .rowlink { color: var(--muted); text-decoration: line-through; }
+.sortitem.done .rowlink { color: var(--muted); text-decoration: line-through; }
+.drag {
+  flex: none;
+  cursor: grab;
+  color: var(--muted);
+  font-size: .95rem;
+  line-height: 1;
+  user-select: none;
+  padding: 2px;
+}
+.sortitem.dragging .drag { cursor: grabbing; }
 
 /* Inline editing (the item page): click any of these to edit in place. */
 h2.scr { font-size: 1.15rem; font-weight: 600; margin: 2px 0; }

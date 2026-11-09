@@ -86,6 +86,10 @@ class Item(SQLModel, table=True):
     # item's page and freely editable. Empty by default.
     notes: str = ""
 
+    # Manual sort order within its group on the Everything screen (lower comes
+    # first). Set by dragging; initialised to the item's id for existing rows.
+    position: int = Field(default=0)
+
     # Auto-assigned by the keyword rules in categorize.py. The user never
     # picks this. It only exists to power the weekly review.
     category: str = "Other"

@@ -161,23 +161,15 @@ def everything(request: Request, session: Session = Depends(get_session)):
     groups = []
     for rhythm, label in EVERYTHING_GROUPS:
         if rhythm == RHYTHM_ONCE:
+            # To-dos keep done ones visible (ticked) so a tap is reversible.
             in_group = [i for i in all_items if i.rhythm == RHYTHM_ONCE]
-            in_group.sort(
-                key=lambda i: (
-                    i.status == STATUS_DONE,
-                    i.due_date is None,
-                    i.due_date or date.max,
-                    i.title.lower(),
-                )
-            )
         else:
             in_group = [
                 i for i in all_items
                 if i.rhythm == rhythm and i.status == STATUS_ACTIVE
             ]
-            in_group.sort(
-                key=lambda i: (i.due_date is None, i.due_date or date.max, i.title.lower())
-            )
+        # Manual order: whatever the user dragged things into.
+        in_group.sort(key=lambda i: i.position)
         if in_group:
             groups.append({"label": label, "rhythm": rhythm, "members": in_group})
 
@@ -256,12 +248,17 @@ def add_save(
     elif rhythm in {"weekly", "monthly"}:
         parsed_due = date.today()
 
+    # New items go to the end of the list (highest position so far + 1).
+    positions = session.exec(select(Item.position)).all()
+    next_position = (max(positions) + 1) if positions else 0
+
     item = Item(
         title=title.strip(),
         rhythm=rhythm,
         due_date=parsed_due,
         next_step=(next_step.strip() if next_step else None),
         category=categorize.categorize(title),  # the app files it for you
+        position=next_position,
     )
     session.add(item)
     session.commit()
@@ -430,6 +427,29 @@ def update_field(
         return  # unknown field — ignore
 
     session.add(item)
+    session.commit()
+
+
+# --- Reorder a group by drag-and-drop ---------------------------------------
+class Reorder(BaseModel):
+    """The new top-to-bottom order of one group, as a list of item ids."""
+
+    ids: list[int]
+
+
+@app.post("/reorder", status_code=204)
+def reorder(payload: Reorder, session: Session = Depends(get_session)):
+    """Save a new manual order for a dragged group.
+
+    We just write each item's new position from its place in the list. Only
+    the items in this one group are touched; other groups keep their order
+    (positions are only ever compared within a group).
+    """
+    for index, item_id in enumerate(payload.ids):
+        item = session.get(Item, item_id)
+        if item is not None:
+            item.position = index
+            session.add(item)
     session.commit()
 
 

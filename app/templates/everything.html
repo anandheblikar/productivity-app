@@ -1,34 +1,85 @@
-{# Everything: active items grouped by rhythm. No category and no due dates
-   here — keep the list clean; dates show inside each item. To-dos get a
-   checkbox so you can tick them off right from the list. #}
+{# Everything: active items grouped by rhythm. No category, no due dates.
+   Each row has a drag handle (⠿) — drag to reorder within its group.
+   To-dos also get a tick-box. #}
 {% extends "base.html" %}
 
 {% block content %}
   {% if groups %}
     {% for group in groups %}
       <div class="group">{{ group.label | upper }}</div>
-      <div class="list">
+      <div class="list" data-sortable>
         {% for item in group.members %}
-          {% if group.rhythm == "once" %}
-            {# To-do row: a checkbox you can tick AND un-tick. Ticked items
-               stay here (checked + struck through), so nothing vanishes. #}
-            {% set is_done = item.status == "done" %}
-            <div class="checkrow {% if is_done %}done{% endif %}">
+          <div class="sortitem {% if group.rhythm == 'once' and item.status == 'done' %}done{% endif %}"
+               draggable="true" data-id="{{ item.id }}">
+            <span class="drag" aria-hidden="true">⠿</span>
+
+            {% if group.rhythm == "once" %}
               <form class="checkform" method="post" action="/item/{{ item.id }}/toggle">
-                <button class="checkbox {% if is_done %}on{% endif %}" type="submit"
-                        aria-label="{% if is_done %}Un-tick{% else %}Tick off{% endif %} {{ item.title }}">
-                  {% if is_done %}✓{% endif %}
+                <button class="checkbox {% if item.status == 'done' %}on{% endif %}" type="submit"
+                        draggable="false"
+                        aria-label="{% if item.status == 'done' %}Un-tick{% else %}Tick off{% endif %} {{ item.title }}">
+                  {% if item.status == "done" %}✓{% endif %}
                 </button>
               </form>
-              <a class="rowlink" href="/item/{{ item.id }}">{{ item.title }}</a>
-            </div>
-          {% else %}
-            <a class="rowbtn" href="/item/{{ item.id }}"><span>{{ item.title }}</span></a>
-          {% endif %}
+            {% endif %}
+
+            <a class="rowlink" href="/item/{{ item.id }}" draggable="false">{{ item.title }}</a>
+          </div>
         {% endfor %}
       </div>
     {% endfor %}
   {% else %}
     <div class="empty">Nothing here yet. Tap "+" to add your first thing.</div>
   {% endif %}
+
+  <script>
+    // Drag-to-reorder, within each group. Plain browser drag-and-drop — no
+    // library. Dropping saves the new order for that group to the server.
+    let dragging = null;
+
+    function saveOrder(list) {
+      const ids = [...list.querySelectorAll(".sortitem")].map(function (el) {
+        return Number(el.dataset.id);
+      });
+      fetch("/reorder", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: ids }),
+      });
+    }
+
+    // Find the row we should drop *before*, based on the pointer's Y position.
+    function rowAfter(list, y) {
+      const rows = [...list.querySelectorAll(".sortitem:not(.dragging)")];
+      let closest = { offset: -Infinity, el: null };
+      rows.forEach(function (row) {
+        const box = row.getBoundingClientRect();
+        const offset = y - box.top - box.height / 2;
+        if (offset < 0 && offset > closest.offset) closest = { offset: offset, el: row };
+      });
+      return closest.el;
+    }
+
+    document.querySelectorAll(".list[data-sortable]").forEach(function (list) {
+      list.querySelectorAll(".sortitem").forEach(function (row) {
+        row.addEventListener("dragstart", function () {
+          dragging = row;
+          row.classList.add("dragging");
+        });
+        row.addEventListener("dragend", function () {
+          row.classList.remove("dragging");
+          dragging = null;
+          saveOrder(list);
+        });
+      });
+
+      list.addEventListener("dragover", function (e) {
+        e.preventDefault();
+        if (!dragging || !list.contains(dragging)) return; // only its own list
+        const after = rowAfter(list, e.clientY);
+        if (after == null) list.appendChild(dragging);
+        else list.insertBefore(dragging, after);
+      });
+    });
+  </script>
 {% endblock %}
