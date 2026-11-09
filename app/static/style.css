@@ -209,6 +209,35 @@ textarea { min-height: 92px; resize: vertical; }
   color: var(--muted);
   margin-top: 8px;
 }
+
+/* To-do rows: a clickable checkbox on the left, the name as a link. */
+.checkrow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border-bottom: 1px solid var(--line);
+}
+.checkrow:last-child { border-bottom: none; }
+.checkform { margin: 0; display: flex; }
+.checkbox {
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 3px;
+  background: none;
+  cursor: pointer;
+  flex: none;
+  padding: 0;
+}
+.checkbox:hover { background: var(--fill); }
+.rowlink {
+  flex: 1;
+  padding: 6px 0;
+  font-size: .84rem;
+  line-height: 1.25;
+  color: var(--ink);
+  text-decoration: none;
+}
 .chk {
   display: inline-block;
   width: 15px;

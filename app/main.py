@@ -130,7 +130,7 @@ def everything(request: Request, session: Session = Depends(get_session)):
             key=lambda i: (i.due_date is None, i.due_date or date.max, i.title.lower())
         )
         if in_group:
-            groups.append({"label": label, "members": in_group})
+            groups.append({"label": label, "rhythm": rhythm, "members": in_group})
 
     return render(
         request,
@@ -313,6 +313,69 @@ def complete_item(item_id: int, session: Session = Depends(get_session)):
     if item is not None:
         advance_item(item, date.today())
         session.add(item)
+        session.commit()
+    return RedirectResponse(url="/everything", status_code=303)
+
+
+# --- Edit an item (GET form, POST save) -------------------------------------
+@app.get("/item/{item_id}/edit")
+def edit_form(item_id: int, request: Request, session: Session = Depends(get_session)):
+    item = session.get(Item, item_id)
+    if item is None:
+        return RedirectResponse(url="/everything", status_code=303)
+    return render(
+        request,
+        "edit.html",
+        title=f"Edit — {item.title}",
+        back_url=f"/item/{item_id}",
+        item=item,
+        rhythms=RHYTHM_ORDER,
+    )
+
+
+@app.post("/item/{item_id}/edit")
+def edit_save(
+    item_id: int,
+    title: str = Form(...),
+    rhythm: str = Form(...),
+    next_step: str | None = Form(None),
+    due_date: str | None = Form(None),
+    session: Session = Depends(get_session),
+):
+    item = session.get(Item, item_id)
+    if item is None:
+        return RedirectResponse(url="/everything", status_code=303)
+
+    # Work out the due date from the (possibly changed) rhythm. For a
+    # recurring item we keep its existing schedule unless it has none yet.
+    if rhythm == RHYTHM_ONCE:
+        item.due_date = date.fromisoformat(due_date) if due_date else None
+    elif rhythm in {RHYTHM_WEEKLY, RHYTHM_MONTHLY}:
+        if item.due_date is None:
+            item.due_date = date.today()
+    else:  # daily / anytime
+        item.due_date = None
+
+    item.title = title.strip()
+    item.rhythm = rhythm
+    item.next_step = next_step.strip() if next_step else None
+    item.category = categorize.categorize(item.title)  # re-file on rename
+
+    session.add(item)
+    session.commit()
+    return RedirectResponse(url=f"/item/{item_id}", status_code=303)
+
+
+# --- Delete an item for good -------------------------------------------------
+@app.post("/item/{item_id}/delete")
+def delete_item(item_id: int, session: Session = Depends(get_session)):
+    item = session.get(Item, item_id)
+    if item is not None:
+        # Remove its logged sessions first, then the item itself.
+        logs = session.exec(select(Log).where(Log.item_id == item_id)).all()
+        for log in logs:
+            session.delete(log)
+        session.delete(item)
         session.commit()
     return RedirectResponse(url="/everything", status_code=303)
 

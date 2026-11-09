@@ -1,5 +1,6 @@
-{# Everything: all active items, grouped by rhythm. Category is intentionally
-   hidden here — it only exists to power the weekly review. #}
+{# Everything: active items grouped by rhythm. No category and no due dates
+   here — keep the list clean; dates show inside each item. To-dos get a
+   checkbox so you can tick them off right from the list. #}
 {% extends "base.html" %}
 
 {% block content %}
@@ -8,12 +9,17 @@
       <div class="group">{{ group.label | upper }}</div>
       <div class="list">
         {% for item in group.members %}
-          <a class="rowbtn" href="/item/{{ item.id }}">
-            <span>{{ item.title }}</span>
-            {% if item.due_date %}
-              <span class="t">due {{ item.due_date.strftime("%-d %b") }}</span>
-            {% endif %}
-          </a>
+          {% if group.rhythm == "once" %}
+            {# To-do row: a checkbox that ticks it off, plus the name. #}
+            <div class="checkrow">
+              <form class="checkform" method="post" action="/item/{{ item.id }}/complete">
+                <button class="checkbox" type="submit" aria-label="Tick off {{ item.title }}"></button>
+              </form>
+              <a class="rowlink" href="/item/{{ item.id }}">{{ item.title }}</a>
+            </div>
+          {% else %}
+            <a class="rowbtn" href="/item/{{ item.id }}"><span>{{ item.title }}</span></a>
+          {% endif %}
         {% endfor %}
       </div>
     {% endfor %}

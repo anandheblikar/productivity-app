@@ -15,6 +15,7 @@
 
   <div class="btns">
     <a class="btn pri" href="/item/{{ item.id }}/log">Log a session</a>
+    <a class="btn" href="/item/{{ item.id }}/edit">Edit</a>
     {% if item.rhythm in ["once", "weekly", "monthly"] and item.status == "active" %}
       {# A quick "I did it" that needs no written note: a one-off ticks off
          and leaves; a recurring chore rolls forward to next time. #}

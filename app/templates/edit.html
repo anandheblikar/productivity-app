@@ -1,0 +1,63 @@
+{# Edit an item: rename it, change its rhythm / due date / next step, or
+   delete it. Pre-filled with the item's current values. #}
+{% extends "base.html" %}
+
+{% block content %}
+  <form method="post" action="/item/{{ item.id }}/edit">
+
+    <div class="lbl">NAME</div>
+    <input type="text" name="title" value="{{ item.title }}" required autofocus>
+
+    <div class="lbl">HOW OFTEN?</div>
+    <div class="row-chips" id="rhythms">
+      {% for r in rhythms %}
+        <label class="chip">
+          <input type="radio" name="rhythm" value="{{ r }}" {% if r == item.rhythm %}checked{% endif %}>
+          {{ r | capitalize }}
+        </label>
+      {% endfor %}
+    </div>
+
+    {# A due date, only for one-offs. #}
+    <div data-for="once">
+      <div class="lbl">DUE BY (optional)</div>
+      <input type="date" name="due_date"
+             value="{% if item.rhythm == 'once' and item.due_date %}{{ item.due_date.isoformat() }}{% endif %}">
+    </div>
+
+    <div class="lbl">NEXT STEP (optional)</div>
+    <input type="text" name="next_step" value="{{ item.next_step or '' }}"
+           placeholder="e.g. slow section of Raga Yaman">
+
+    <div class="btns">
+      <button class="btn pri" type="submit">Save</button>
+      <a class="btn" href="/item/{{ item.id }}">Cancel</a>
+    </div>
+  </form>
+
+  <div class="spacer"></div>
+
+  {# Delete lives in its own form so it can't be submitted by accident. #}
+  <form method="post" action="/item/{{ item.id }}/delete"
+        onsubmit="return confirm('Delete this item and its history for good?');">
+    <button class="btn" type="submit">Delete this item</button>
+  </form>
+
+  <script>
+    // Show the due-date field only for one-offs, and mark the chosen chip.
+    const form = document.querySelector("form");
+
+    function refresh() {
+      const rhythm = form.querySelector('input[name="rhythm"]:checked').value;
+      form.querySelectorAll("[data-for]").forEach(function (box) {
+        box.style.display = box.getAttribute("data-for").split(" ").includes(rhythm) ? "" : "none";
+      });
+      form.querySelectorAll(".chip").forEach(function (chip) {
+        chip.classList.toggle("sel", chip.querySelector("input").checked);
+      });
+    }
+
+    form.addEventListener("change", refresh);
+    refresh();
+  </script>
+{% endblock %}
