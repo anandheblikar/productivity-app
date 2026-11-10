@@ -1,0 +1,35 @@
+{# The sign-in page. Standalone — no tab bar — so there's nothing to reach
+   until you're in. #}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · Tonight</title>
+  <link rel="stylesheet" href="/static/style.css?v={{ css_version }}">
+</head>
+<body>
+  <div class="phone">
+    <div class="topbar">
+      <span class="title">Tonight</span>
+      <span class="clock">{{ now.strftime("%-I:%M %p") }}</span>
+    </div>
+
+    <div class="content">
+      <div class="sub">A quiet place for your evenings. Sign in to continue.</div>
+
+      {% if error %}
+        <div class="loginerror">Wrong password — try again.</div>
+      {% endif %}
+
+      <form method="post" action="/login">
+        <div class="lbl">PASSWORD</div>
+        <input type="password" name="password" autofocus required>
+        <div class="btns">
+          <button class="btn pri" type="submit">Sign in</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

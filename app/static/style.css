@@ -83,6 +83,24 @@ body {
   font-size: .68rem;
   color: var(--muted);
 }
+.topbar .logout {
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 2px;
+}
+.topbar .logout:hover { color: var(--ink); }
+
+/* Wrong-password message on the sign-in page. */
+.loginerror {
+  color: var(--ink);
+  background: var(--fill);
+  border: 1px solid var(--line-strong);
+  border-radius: 4px;
+  padding: 7px 9px;
+  font-size: .8rem;
+}
 
 /* The scrolling body of each screen. */
 .content {

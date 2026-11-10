@@ -16,6 +16,8 @@ The flow mirrors the wireframe:
     /item/{id}/complete -> mark a todo done
 """
 
+import os
+import secrets
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
@@ -25,6 +27,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from sqlmodel import Session, select
+from starlette.middleware.sessions import SessionMiddleware
 
 from app import categorize
 from app.database import get_session, init_db
@@ -60,6 +63,48 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
 # Serve the CSS under /static and uploaded recordings under /media.
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 app.mount("/media", StaticFiles(directory=str(MEDIA_DIR)), name="media")
+
+
+# --- Login / privacy --------------------------------------------------------
+# This is a single-user app, so "login" is just one password. Both the
+# password and the cookie-signing secret come from environment variables so
+# they never live in the code. Sensible dev defaults let it run locally; set
+# real values (and serve over HTTPS) before hosting it anywhere.
+APP_PASSWORD = os.environ.get("APP_PASSWORD", "tonight")
+APP_SECRET = os.environ.get("APP_SECRET") or secrets.token_hex(32)
+# Set APP_HTTPS_ONLY=1 when hosting over HTTPS so the cookie is HTTPS-only.
+HTTPS_ONLY = os.environ.get("APP_HTTPS_ONLY", "").lower() in {"1", "true", "yes"}
+
+if "APP_PASSWORD" not in os.environ:
+    print("WARNING: APP_PASSWORD is not set — using the default 'tonight'. "
+          "Set APP_PASSWORD (and APP_SECRET) before hosting this.")
+
+# Pages anyone may reach without being logged in.
+PUBLIC_PATHS = {"/login", "/logout"}
+
+
+@app.middleware("http")
+async def require_login(request: Request, call_next):
+    """Bounce every request to /login unless the session is signed in."""
+    path = request.url.path
+    is_public = (
+        path in PUBLIC_PATHS
+        or path.startswith("/static")
+        or path.startswith("/media")
+    )
+    if not is_public and not request.session.get("authed"):
+        return RedirectResponse(url="/login", status_code=303)
+    return await call_next(request)
+
+
+# Added last so it wraps the auth check: the session cookie is decoded first,
+# then require_login can read it. Signs the cookie so it can't be forged.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=APP_SECRET,
+    https_only=HTTPS_ONLY,
+    same_site="lax",
+)
 
 
 def css_version() -> int:
@@ -100,6 +145,30 @@ def canvas_prompt(item: Item) -> str:
         if any(keyword in text for keyword in keywords):
             return hint
     return ""  # nothing sensible to suggest — leave the canvas blank
+
+
+# --- Login / logout ---------------------------------------------------------
+@app.get("/login")
+def login_form(request: Request):
+    if request.session.get("authed"):
+        return RedirectResponse(url="/", status_code=303)
+    error = request.query_params.get("error") is not None
+    return render(request, "login.html", title="Sign in", error=error)
+
+
+@app.post("/login")
+def login(request: Request, password: str = Form(...)):
+    # Constant-time compare so timing can't leak the password.
+    if secrets.compare_digest(password, APP_PASSWORD):
+        request.session["authed"] = True
+        return RedirectResponse(url="/", status_code=303)
+    return RedirectResponse(url="/login?error=1", status_code=303)
+
+
+@app.get("/logout")
+def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url="/login", status_code=303)
 
 
 # --- Tonight ----------------------------------------------------------------

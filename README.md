@@ -90,6 +90,32 @@ uv run uvicorn app.main:app --reload
 Then open <http://127.0.0.1:8000> in a browser. On first run it creates the
 `productivity.db` database and a `media/` folder automatically.
 
+## Login & hosting
+
+The app is single-user and sits behind one password. Locally it runs with a
+default password (`tonight`) so you can get started — you'll see a warning in
+the console reminding you to set your own.
+
+Before hosting it anywhere (e.g. to reach it from your phone), set these
+environment variables:
+
+- `APP_PASSWORD` — the password you'll type to sign in.
+- `APP_SECRET` — a long random string used to sign the login cookie (so it
+  can't be forged). Generate one with `python -c "import secrets; print(secrets.token_hex(32))"`.
+- `APP_HTTPS_ONLY=1` — once you're serving over HTTPS, so the cookie is only
+  sent over a secure connection.
+
+```bash
+APP_PASSWORD='your-password' \
+APP_SECRET='paste-a-long-random-string' \
+APP_HTTPS_ONLY=1 \
+uv run uvicorn app.main:app --host 0.0.0.0
+```
+
+**Important:** only expose this over **HTTPS** (e.g. behind a host or reverse
+proxy that terminates TLS). A password sent over plain `http://` can be read
+in transit. The log-out control is the ⏻ in the top-right of every screen.
+
 ## Run the tests
 
 ```bash
