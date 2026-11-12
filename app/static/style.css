@@ -408,13 +408,14 @@ h2.scr { font-size: 1.15rem; font-weight: 600; margin: 2px 0; }
   background: none;
   color: var(--muted);
   font-family: var(--mono);
-  font-size: .72rem;
-  padding: 11px 4px;
+  font-size: .62rem;
+  padding: 11px 2px;
   cursor: pointer;
   text-align: center;
   text-decoration: none;
+  white-space: nowrap;
 }
-.tab.plus { font-size: 1.1rem; color: var(--ink); }
+.tab.plus { font-size: 1.05rem; color: var(--ink); flex: 0 0 34px; }
 .tab.on {
   color: var(--ink);
   font-weight: 700;

@@ -1,6 +1,9 @@
-{# Everything: active items grouped by rhythm. No category, no due dates.
-   Each row has a drag handle (⠿) — drag to reorder within its group.
-   To-dos also get a tick-box. #}
+{# A grouped, drag-reorderable list of items. Used by both On deck and
+   Parking lot — each passes its own groups. A group carries:
+     label    - heading text
+     members  - the items
+     checkbox - show a tick-box on each row (to-do groups)
+     toggle   - show the checklist/plain-list switch on the heading #}
 {% extends "base.html" %}
 
 {% block content %}
@@ -8,8 +11,7 @@
     {% for group in groups %}
       <div class="group groupbar">
         <span>{{ group.label | upper }}</span>
-        {% if group.rhythm == "once" %}
-          {# Flip the To-do section between tick-boxes and a plain list. #}
+        {% if group.toggle %}
           <span class="viewtoggle">
             <a href="/view/todos/checklist" class="{% if todo_view != 'list' %}on{% endif %}">☑ checklist</a>
             <a href="/view/todos/list" class="{% if todo_view == 'list' %}on{% endif %}">☰ list</a>
@@ -18,11 +20,11 @@
       </div>
       <div class="list" data-sortable>
         {% for item in group.members %}
-          <div class="sortitem {% if group.rhythm == 'once' and item.status == 'done' %}done{% endif %}"
+          <div class="sortitem {% if group.checkbox and item.status == 'done' %}done{% endif %}"
                draggable="true" data-id="{{ item.id }}">
             <span class="drag" aria-hidden="true">⠿</span>
 
-            {% if group.rhythm == "once" and todo_view != "list" %}
+            {% if group.checkbox %}
               <form class="checkform" method="post" action="/item/{{ item.id }}/toggle">
                 <button class="checkbox {% if item.status == 'done' %}on{% endif %}" type="submit"
                         draggable="false"
@@ -38,12 +40,11 @@
       </div>
     {% endfor %}
   {% else %}
-    <div class="empty">Nothing here yet. Tap "+" to add your first thing.</div>
+    <div class="empty">Nothing here right now. Tap "+" to add something.</div>
   {% endif %}
 
   <script>
-    // Drag-to-reorder, within each group. Plain browser drag-and-drop — no
-    // library. Dropping saves the new order for that group to the server.
+    // Drag-to-reorder within each group. Plain browser drag-and-drop.
     let dragging = null;
 
     function saveOrder(list) {
@@ -57,7 +58,6 @@
       });
     }
 
-    // Find the row we should drop *before*, based on the pointer's Y position.
     function rowAfter(list, y) {
       const rows = [...list.querySelectorAll(".sortitem:not(.dragging)")];
       let closest = { offset: -Infinity, el: null };
@@ -84,7 +84,7 @@
 
       list.addEventListener("dragover", function (e) {
         e.preventDefault();
-        if (!dragging || !list.contains(dragging)) return; // only its own list
+        if (!dragging || !list.contains(dragging)) return;
         const after = rowAfter(list, e.clientY);
         if (after == null) list.appendChild(dragging);
         else list.insertBefore(dragging, after);

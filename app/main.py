@@ -8,7 +8,8 @@ and every page is a normal server-rendered page.
 The flow mirrors the wireframe:
     /                -> Tonight (one nudge + "also today")
     /something-else  -> alternatives
-    /everything      -> all items grouped by category
+    /on-deck         -> today's tasks + recurring
+    /parking         -> loose reminders + open-ended
     /week            -> sessions per category, last 7 days
     /add             -> add an item (GET shows the form, POST saves it)
     /item/{id}       -> item detail + history
@@ -45,7 +46,7 @@ from app.models import (
     Log,
     Page,
 )
-from app.nudge import advance_item, build_tonight, tiny_version
+from app.nudge import advance_item, build_tonight, is_due, tiny_version
 
 # Where this file lives, so we can find templates/, static/ and media/.
 BASE_DIR = Path(__file__).resolve().parent
@@ -117,6 +118,21 @@ def css_version() -> int:
     return int((BASE_DIR / "static" / "style.css").stat().st_mtime)
 
 
+def _back_to(request: Request, fallback: str) -> str:
+    """Return the page the request came from, so an action keeps you in place.
+
+    Falls back to a sensible list when there's no same-site referrer, and
+    never returns an item page (it may be gone after the action).
+    """
+    referer = request.headers.get("referer", "")
+    base = str(request.base_url).rstrip("/")
+    if referer.startswith(base):
+        path = referer[len(base):] or "/"
+        if "/item/" not in path:
+            return path
+    return fallback
+
+
 def render(request: Request, template_name: str, **context):
     """Render a template, always including the current time for the top bar."""
     context["request"] = request
@@ -182,8 +198,8 @@ def tonight(request: Request, session: Session = Depends(get_session)):
     return render(
         request,
         "tonight.html",
-        title="Tonight",
-        active="tonight",
+        title="Focus",
+        active="focus",
         suggestion=view.suggestion,
         also_today=view.also_today,
         tiny=tiny_version(view.suggestion) if view.suggestion else "",
@@ -207,18 +223,6 @@ def something_else(request: Request, session: Session = Depends(get_session)):
     )
 
 
-# The order the Everything screen groups things in, with a friendly heading
-# for each rhythm. Category is deliberately NOT shown here — it's a hidden
-# field that only powers the weekly review.
-EVERYTHING_GROUPS = [
-    (RHYTHM_DAILY, "Daily"),
-    (RHYTHM_WEEKLY, "Weekly"),
-    (RHYTHM_MONTHLY, "Monthly"),
-    (RHYTHM_ONCE, "To-do"),
-    (RHYTHM_ANYTIME, "Anytime"),
-]
-
-
 # How the To-do section is shown: "checklist" (tick-boxes) or "list" (plain).
 # Remembered in a cookie so the choice sticks between visits.
 TODO_VIEW_COOKIE = "todo_view"
@@ -226,46 +230,73 @@ TODO_VIEW_COOKIE = "todo_view"
 
 @app.get("/view/todos/{mode}")
 def set_todo_view(mode: str):
-    """Switch the To-do section between checklist and plain list, and remember it."""
+    """Switch the to-do list between checklist and plain list, and remember it."""
     mode = "list" if mode == "list" else "checklist"
-    response = RedirectResponse(url="/everything", status_code=303)
+    response = RedirectResponse(url="/parking", status_code=303)
     response.set_cookie(TODO_VIEW_COOKIE, mode, max_age=60 * 60 * 24 * 365)
     return response
 
 
-# --- Everything (grouped by rhythm) -----------------------------------------
+# Old URL -> keep any saved links / redirects working.
 @app.get("/everything")
-def everything(request: Request, session: Session = Depends(get_session)):
+def everything_redirect():
+    return RedirectResponse(url="/on-deck", status_code=303)
+
+
+# --- On deck (today's tasks + recurring) ------------------------------------
+@app.get("/on-deck")
+def on_deck(request: Request, session: Session = Depends(get_session)):
+    """What's on now: to-dos that are due, plus every recurring item."""
     all_items = session.exec(select(Item)).all()
-    todo_view = request.cookies.get(TODO_VIEW_COOKIE, "checklist")
-
-    # Group items by rhythm, in the order above.
-    #  - To-dos (once): in checklist mode we also keep *done* ones visible
-    #    (ticked), so a tick is reversible; in plain-list mode we show only
-    #    active ones, since there's no box to tick.
-    #  - Every other group: only active items (those never "finish").
-    # Within a group, use the manual drag order (position).
+    today = date.today()
     groups = []
-    for rhythm, label in EVERYTHING_GROUPS:
-        if rhythm == RHYTHM_ONCE and todo_view == "checklist":
-            in_group = [i for i in all_items if i.rhythm == RHYTHM_ONCE]
-        else:
-            in_group = [
-                i for i in all_items
-                if i.rhythm == rhythm and i.status == STATUS_ACTIVE
-            ]
-        in_group.sort(key=lambda i: i.position)
-        if in_group:
-            groups.append({"label": label, "rhythm": rhythm, "members": in_group})
 
-    return render(
-        request,
-        "everything.html",
-        title="Everything",
-        active="everything",
-        groups=groups,
-        todo_view=todo_view,
-    )
+    # "Today" = one-off tasks whose date is here or past (done ones stay
+    # visible, ticked, so completing is reversible).
+    due_todos = [i for i in all_items if i.rhythm == RHYTHM_ONCE and is_due(i, today)]
+    due_todos.sort(key=lambda i: (i.status == STATUS_DONE, i.position))
+    if due_todos:
+        groups.append({"label": "Today", "members": due_todos, "checkbox": True, "toggle": False})
+
+    # Recurring anchors, each in its own group.
+    for rhythm, label in [(RHYTHM_DAILY, "Daily"), (RHYTHM_WEEKLY, "Weekly"), (RHYTHM_MONTHLY, "Monthly")]:
+        members = [i for i in all_items if i.rhythm == rhythm and i.status == STATUS_ACTIVE]
+        members.sort(key=lambda i: i.position)
+        if members:
+            groups.append({"label": label, "members": members, "checkbox": False, "toggle": False})
+
+    return render(request, "grouped.html", title="On deck", active="ondeck", groups=groups)
+
+
+# --- Parking lot (loose reminders + open-ended) -----------------------------
+@app.get("/parking")
+def parking(request: Request, session: Session = Depends(get_session)):
+    """The 'whenever' pile: undated/not-due to-dos and open-ended Anytime items."""
+    all_items = session.exec(select(Item)).all()
+    today = date.today()
+    todo_view = request.cookies.get(TODO_VIEW_COOKIE, "checklist")
+    groups = []
+
+    # To-dos with no near due date. In checklist mode done ones stay visible
+    # (ticked); in plain-list mode we show only the active ones.
+    todos = [i for i in all_items if i.rhythm == RHYTHM_ONCE and not is_due(i, today)]
+    if todo_view == "list":
+        todos = [i for i in todos if i.status == STATUS_ACTIVE]
+    todos.sort(key=lambda i: (i.status == STATUS_DONE, i.position))
+    if todos:
+        groups.append({
+            "label": "To-do", "members": todos,
+            "checkbox": todo_view == "checklist", "toggle": True,
+        })
+
+    # Open-ended pursuits with no schedule.
+    anytime = [i for i in all_items if i.rhythm == RHYTHM_ANYTIME and i.status == STATUS_ACTIVE]
+    anytime.sort(key=lambda i: i.position)
+    if anytime:
+        groups.append({"label": "Anytime", "members": anytime, "checkbox": False, "toggle": False})
+
+    return render(request, "grouped.html", title="Parking lot", active="parking",
+                  groups=groups, todo_view=todo_view)
 
 
 # --- This week (sessions per category, last 7 days) -------------------------
@@ -386,8 +417,10 @@ def add_save(
     session.add(item)
     session.commit()
 
-    # After saving, go to Everything so the user sees where it landed.
-    return RedirectResponse(url="/everything", status_code=303)
+    # Send the user to the tab the new item landed in.
+    if item.rhythm == RHYTHM_ANYTIME or (item.rhythm == RHYTHM_ONCE and not is_due(item, date.today())):
+        return RedirectResponse(url="/parking", status_code=303)
+    return RedirectResponse(url="/on-deck", status_code=303)
 
 
 # --- Item detail ------------------------------------------------------------
@@ -397,7 +430,7 @@ def item_detail(
 ):
     item = session.get(Item, item_id)
     if item is None:
-        return RedirectResponse(url="/everything", status_code=303)
+        return RedirectResponse(url="/on-deck", status_code=303)
 
     # This item's sessions, newest first.
     logs = session.exec(
@@ -413,7 +446,7 @@ def item_detail(
         request,
         "detail.html",
         title=item.title,
-        back_url="/everything",
+        back_url="/on-deck",
         item=item,
         logs=logs,
         pages=pages,
@@ -428,7 +461,7 @@ def add_page(item_id: int, session: Session = Depends(get_session)):
     """Create a new, empty sub-page on an item."""
     item = session.get(Item, item_id)
     if item is None:
-        return RedirectResponse(url="/everything", status_code=303)
+        return RedirectResponse(url="/on-deck", status_code=303)
 
     positions = session.exec(
         select(Page.position).where(Page.item_id == item_id)
@@ -472,7 +505,7 @@ def update_page_field(
 def delete_page(page_id: int, session: Session = Depends(get_session)):
     page = session.get(Page, page_id)
     if page is None:
-        return RedirectResponse(url="/everything", status_code=303)
+        return RedirectResponse(url="/on-deck", status_code=303)
     item_id = page.item_id
     session.delete(page)
     session.commit()
@@ -538,7 +571,7 @@ async def log_save(
 
 # --- Mark done (without logging a note) --------------------------------------
 @app.post("/item/{item_id}/complete")
-def complete_item(item_id: int, session: Session = Depends(get_session)):
+def complete_item(item_id: int, request: Request, session: Session = Depends(get_session)):
     """A quick "I did it" that doesn't need a written session.
 
     Used for one-offs (tick it off) and recurring chores (roll to next time).
@@ -548,24 +581,24 @@ def complete_item(item_id: int, session: Session = Depends(get_session)):
         advance_item(item, date.today())
         session.add(item)
         session.commit()
-    return RedirectResponse(url="/everything", status_code=303)
+    return RedirectResponse(url=_back_to(request, "/on-deck"), status_code=303)
 
 
 # --- Tick a to-do on/off (reversible) ----------------------------------------
 @app.post("/item/{item_id}/toggle")
-def toggle_item(item_id: int, session: Session = Depends(get_session)):
+def toggle_item(item_id: int, request: Request, session: Session = Depends(get_session)):
     """Flip a one-off between active and done.
 
-    This powers the checkbox in the Everything list. It's reversible on
-    purpose — a mis-tap just un-ticks — and the item stays in the list
-    either way, so nothing disappears out from under you.
+    This powers the checkbox in the lists. It's reversible on purpose — a
+    mis-tap just un-ticks — and the item stays in place either way, so
+    nothing disappears out from under you.
     """
     item = session.get(Item, item_id)
     if item is not None and item.rhythm == RHYTHM_ONCE:
         item.status = STATUS_ACTIVE if item.status == STATUS_DONE else STATUS_DONE
         session.add(item)
         session.commit()
-    return RedirectResponse(url="/everything", status_code=303)
+    return RedirectResponse(url=_back_to(request, "/parking"), status_code=303)
 
 
 # --- Edit a single field inline (from the item page) ------------------------
@@ -651,7 +684,7 @@ def delete_item(item_id: int, session: Session = Depends(get_session)):
             session.delete(page)
         session.delete(item)
         session.commit()
-    return RedirectResponse(url="/everything", status_code=303)
+    return RedirectResponse(url="/on-deck", status_code=303)
 
 
 # Allow `uv run python -m app.main` to start the server directly.
