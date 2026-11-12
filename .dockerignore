@@ -1,0 +1,13 @@
+# Keep the image small and never ship local/personal files into the host.
+.git
+.venv
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Local data and personal files — must NOT go to the server.
+*.db
+media/
+seed_my_items.py
+
+.DS_Store

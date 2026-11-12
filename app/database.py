@@ -25,9 +25,32 @@ from app import models  # noqa: F401
 # The database file sits in the project root, next to pyproject.toml.
 DB_FILE = Path(__file__).resolve().parent.parent / "productivity.db"
 
-# The connection string SQLite understands. The engine is created once and
-# reused for the whole app.
-engine = create_engine(f"sqlite:///{DB_FILE}", echo=False)
+
+def _build_engine():
+    """Pick the database from the environment.
+
+    - If DATABASE_URL is set (when hosted), use that Postgres database so the
+      data persists in the cloud.
+    - Otherwise fall back to the local SQLite file for development.
+
+    Hosts like Neon/Render hand out a ``postgresql://…`` URL; SQLAlchemy needs
+    the driver named explicitly (``postgresql+psycopg://…``), so we patch it.
+    """
+    import os
+
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        if database_url.startswith("postgres://"):
+            database_url = "postgresql://" + database_url[len("postgres://"):]
+        if database_url.startswith("postgresql://"):
+            database_url = "postgresql+psycopg://" + database_url[len("postgresql://"):]
+        return create_engine(database_url, echo=False)
+
+    return create_engine(f"sqlite:///{DB_FILE}", echo=False)
+
+
+# The engine is created once and reused for the whole app.
+engine = _build_engine()
 
 
 def init_db() -> None:
